@@ -1,6 +1,6 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import Replicate from 'replicate';
+import { checkPrediction } from '@/lib/music-generator';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -8,78 +8,53 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   const supabase = createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = params;
-
-  const { data: generation, error } = await supabase
+  const { data: gen, error } = await supabase
     .from('generations')
     .select('*')
-    .eq('id', id)
+    .eq('id', params.id)
     .eq('user_id', user.id)
     .single();
 
-  if (error || !generation) {
-    return NextResponse.json({ error: 'Generation not found' }, { status: 404 });
-  }
+  if (error || !gen) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (gen.status === 'completed' || gen.status === 'failed') return NextResponse.json(gen);
 
-  if (generation.status === 'completed' || generation.status === 'failed') {
-    return NextResponse.json(generation);
-  }
-
-  if (generation.status === 'processing' || generation.status === 'queued') {
-    if (generation.prediction_id && !generation.prediction_id.startsWith('mock-')) {
+  if (gen.status === 'processing' || gen.status === 'queued') {
+    if (gen.prediction_id) {
       try {
-        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! });
-        const prediction = await replicate.predictions.get(generation.prediction_id);
-
-        if (prediction.status === 'succeeded') {
-          const audioUrl = (prediction.output as any)?.audio;
-          if (audioUrl) {
-            const response = await fetch(audioUrl);
-            if (!response.ok) throw new Error('Failed to fetch audio from Replicate');
-            const audioBuffer = await response.arrayBuffer();
-            const fileName = `${user.id}/${generation.id}.mp3`;
-            const { error: uploadError } = await supabaseAdmin
-              .storage.from('songs')
-              .upload(fileName, audioBuffer, { contentType: 'audio/mpeg', upsert: true });
-
-            if (uploadError) {
-              await supabase.from('generations').update({ status: 'failed' }).eq('id', id);
-              generation.status = 'failed';
+        const audioUrl = await checkPrediction(gen.prediction_id);
+        if (audioUrl) {
+          const resp = await fetch(audioUrl);
+          if (resp.ok) {
+            const buffer = await resp.arrayBuffer();
+            const fileName = `${user.id}/${gen.id}.mp3`;
+            const { error: uploadErr } = await supabaseAdmin.storage
+              .from('songs')
+              .upload(fileName, buffer, { contentType: 'audio/mpeg', upsert: true });
+            if (!uploadErr) {
+              const { data: publicData } = supabaseAdmin.storage.from('songs').getPublicUrl(fileName);
+              await supabase.from('generations').update({ status: 'completed', audio_url: publicData.publicUrl }).eq('id', gen.id);
+              gen.status = 'completed';
+              gen.audio_url = publicData.publicUrl;
             } else {
-              const { data: publicUrlData } = supabaseAdmin.storage.from('songs').getPublicUrl(fileName);
-              const publicUrl = publicUrlData.publicUrl;
-              await supabase.from('generations').update({ status: 'completed', audio_url: publicUrl }).eq('id', id);
-              generation.status = 'completed';
-              generation.audio_url = publicUrl;
+              await supabase.from('generations').update({ status: 'failed' }).eq('id', gen.id);
+              gen.status = 'failed';
             }
           } else {
-            await supabase.from('generations').update({ status: 'failed' }).eq('id', id);
-            generation.status = 'failed';
+            // Si le téléchargement de l’audio échoue, on met en échec
+            await supabase.from('generations').update({ status: 'failed' }).eq('id', gen.id);
+            gen.status = 'failed';
           }
-        } else if (prediction.status === 'failed') {
-          await supabase.from('generations').update({ status: 'failed' }).eq('id', id);
-          generation.status = 'failed';
         }
       } catch (err) {
         console.error('Polling error:', err);
       }
-    } else if (generation.prediction_id && generation.prediction_id.startsWith('mock-')) {
-      const elapsed = Date.now() - parseInt(generation.prediction_id.split('-')[1]);
-      if (elapsed > 3000) {
-        await supabase.from('generations').update({ status: 'completed', audio_url: '/audio/sample.mp3' }).eq('id', id);
-        generation.status = 'completed';
-        generation.audio_url = '/audio/sample.mp3';
-      }
     }
   }
 
-  return NextResponse.json(generation);
+  return NextResponse.json(gen);
 }

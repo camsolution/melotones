@@ -1,7 +1,6 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import Replicate from 'replicate';
-import { getLatestVersionId } from '@/lib/replicate-version';
+import { generateMusic } from '@/lib/music-generator';
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
@@ -54,28 +53,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
   }
 
-  // 4. Lancer la génération (réelle ou mock)
+  // 4. Lancer la génération via l’orchestrateur vocal (Suno, Udio, Mureka)
   try {
-    let predictionId: string | null = null;
-
-    if (process.env.NEXT_PUBLIC_MOCK_AI !== 'true' && process.env.REPLICATE_API_TOKEN) {
-      const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! });
-      const prompt = `A ${style} song for ${occasion}, about: ${custom_message}`;
-      // Obtenir la dernière version valide
-      const version = await getLatestVersionId('riffusion/riffusion');
-      const prediction = await replicate.predictions.create({
-        version, // ID correct récupéré automatiquement
-        input: {
-          prompt_a: prompt,
-          denoising: 0.75,
-          seed_image_id: 'vibes',
-          num_inference_steps: 50,
-        },
-      });
-      predictionId = prediction.id;
-    } else {
-      predictionId = `mock-${Date.now()}`;
-    }
+    const prompt = `A ${style} song for ${occasion}, about: ${custom_message}`;
+    const { predictionId } = await generateMusic(prompt, user.id);
 
     await supabase
       .from('generations')
@@ -83,10 +64,12 @@ export async function POST(request: Request) {
       .eq('id', generation.id);
 
     return NextResponse.json({ id: generation.id, status: 'processing' });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Generation launch error:', err);
+    // Rembourser le crédit
     await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
     await supabase.from('generations').update({ status: 'failed' }).eq('id', generation.id);
-    return NextResponse.json({ error: 'AI generation failed' }, { status: 500 });
+    const message = err.message || 'AI generation failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
