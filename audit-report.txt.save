@@ -1,0 +1,94 @@
+🔍 AUDIT MELOTONES – Fri Aug  7 02:14:52 GMT 2026
+
+📁 1. Fichiers essentiels
+✅ app/layout.tsx
+✅ app/page.tsx
+✅ components/Navbar.tsx
+✅ components/AuthForm.tsx
+✅ components/CreateForm.tsx
+✅ components/SongDetail.tsx
+✅ components/CreditsManager.tsx
+✅ components/ExampleGrid.tsx
+✅ components/SearchFilters.tsx
+✅ components/CommunitySongs.tsx
+✅ components/Testimonials.tsx
+✅ components/HomeContent.tsx
+✅ components/UserCounter.tsx
+✅ contexts/LanguageContext.tsx
+✅ lib/listTranslations.ts
+✅ lib/supabase/client.ts
+✅ lib/supabase/server.ts
+✅ lib/supabase/middleware.ts
+✅ lib/ai-generate.ts
+✅ lib/replicate.ts
+✅ lib/stripe.ts
+✅ lib/utils.ts
+✅ types/index.ts
+✅ app/api/generations/route.ts
+❌ MANQUANT: app/api/generations/[id]/route.ts
+✅ app/api/credits/add-mock/route.ts
+✅ app/api/credits/purchase/route.ts
+✅ app/api/credits/webhook/route.ts
+✅ middleware.ts
+✅ tailwind.config.ts
+✅ .env.local
+
+⚙️ 2. Variables d'environnement (.env.local)
+NEXT_PUBLIC_SUPABASE_URL=***
+NEXT_PUBLIC_SUPABASE_ANON_KEY=***
+SUPABASE_SERVICE_ROLE_KEY=***
+NEXT_PUBLIC_MOCK_AI=***
+NEXT_PUBLIC_MOCK_PAYMENTS=***
+STRIPE_SECRET_KEY=***
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=***
+STRIPE_WEBHOOK_SECRET=***
+NEXT_PUBLIC_SITE_URL=***
+REPLICATE_API_TOKEN=***
+
+🔨 3. Build de production
+   ▲ Next.js 14.1.0
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+000<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (114kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (270kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/14) ...
+   Generating static pages (3/14) 
+   Generating static pages (6/14) 
+   Generating static pages (10/14) 
+ ✓ Generating static pages (14/14) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ λ /                                    5.55 kB        96.6 kB
+├ λ /_not-found                          882 B          85.1 kB
+├ λ /api/credits/add-mock                0 B                0 B
+├ λ /api/credits/purchase                0 B                0 B
+├ λ /api/credits/webhook                 0 B                0 B
+├ λ /api/generations                     0 B                0 B
+├ λ /auth/callback                       0 B                0 B
+├ λ /create                              2.84 kB         154 kB
+├ λ /dashboard                           1.87 kB         154 kB
+├ λ /history                             1.68 kB         160 kB
+├ λ /login                               1.81 kB         153 kB
+├ λ /signup                              1.81 kB         153 kB
+└ λ /songs/[id]                          2.87 kB        87.1 kB
++ First Load JS shared by all            84.2 kB
+  ├ chunks/69-74991fbcbd5b30c1.js        28.9 kB
+  ├ chunks/fd9d1056-ca85653fb6b166ec.js  53.4 kB
+  └ other shared chunks (total)          1.96 kB
+
+
+ƒ Middleware                             224 kB
+
+λ  (Dynamic)  server-rendered on demand using Node.js
+
+BUILD OK
+
+🧪 4. Vérifications runtime
+→ Lancement du serveur de test (5s)...
+cd ~/melotones && echo "🔍 AUDIT MELOTONES – $(date)" > audit-report.txt && echo "" >> audit-report.txt && echo "📁 1. Fichiers essentiels" >> audit-report.txt && for f in app/layout.tsx app/page.tsx components/Navbar.tsx components/AuthForm.tsx components/CreateForm.tsx components/SongDetail.tsx components/CreditsManager.tsx components/ExampleGrid.tsx components/SearchFilters.tsx components/CommunitySongs.tsx components/Testimonials.tsx components/HomeContent.tsx components/UserCounter.tsx contexts/LanguageContext.tsx lib/listTranslations.ts lib/supabase/client.ts lib/supabase/server.ts lib/supabase/middleware.ts lib/ai-generate.ts lib/replicate.ts lib/stripe.ts lib/utils.ts types/index.ts app/api/generations/route.ts app/api/generations/\[id\]/route.ts app/api/credits/add-mock/route.ts app/api/credits/purchase/route.ts app/api/credits/webhook/route.ts middleware.ts tailwind.config.ts .env.local; do if [ -f "$f" ]; then echo "✅ $f" >> audit-report.txt; else echo "❌ MANQUANT: $f" >> audit-report.txt; fi; done && echo "" >> audit-report.txt && echo "⚙️ 2. Variables d'environnement (.env.local)" >> audit-report.txt && (grep -E '^NEXT_PUBLIC_SUPABASE_URL|^NEXT_PUBLIC_SUPABASE_ANON_KEY|^SUPABASE_SERVICE_ROLE_KEY|^NEXT_PUBLIC_MOCK_AI|^NEXT_PUBLIC_MOCK_PAYMENTS|^REPLICATE_API_TOKEN|^STRIPE_SECRET_KEY|^NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY|^STRIPE_WEBHOOK_SECRET|^NEXT_PUBLIC_SITE_URL' .env.local | sed 's/=.*/=***/') >> audit-report.txt 2>&1 || echo "❌ .env.local introuvable" >> audit-report.txt && echo "" >> audit-report.txt && echo "🔨 3. Build de production" >> audit-report.txt && rm -rf .next && npx next build >> audit-report.txt 2>&1 && echo "BUILD OK" >> audit-report.txt || echo "❌ BUILD FAILED" >> audit-report.txt && echo "" >> audit-report.txt && echo "🧪 4. Vérifications runtime" >> audit-report.txt && echo "→ Lancement du serveur de test (5s)..." >> audit-report.txt && npx next start -p 3999 & sleep 5 && curl -s -o /dev/null -w "%{http_code}" http://localhost:3999 >> audit-report.txt && echo " (HTTP status)" >> audit-report.txt && curl -s -o /dev/null -w "%{http_code}" http://localhost:3999/login >> audit-report.txt && echo " (login)" >> audit-report.txt && kill %1 2>/dev/null && echo "" >> audit-report.txt && echo "📋 Résumé :" >> audit-report.txt && if grep -q "BUILD OK" audit-report.txt; then echo "✅ Compilation réussie" >> audit-report.txt; else echo "❌ Compilation échouée – voir détails ci-dessus" >> audit-report.txt; fi && if grep -q "200" audit-report.txt; then echo "✅ Serveur répond en HTTP 200" >> audit-report.txt; else echo "⚠️ Serveur inaccessible" >> audit-report.txt; fi && echo "" >> audit-report.txt && cat audit-report.txt

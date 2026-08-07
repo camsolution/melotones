@@ -1,0 +1,25 @@
+import Replicate from 'replicate';
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN!,
+});
+
+export async function generateMusicWithReplicate(
+  prompt: string,
+): Promise<string> {
+  const output = await replicate.run(
+    "riffusion/riffusion:8cf61ea6c56afd61d8f5b9ffd14d7c216c0a93844ce8d82ac1c9ecc9c7f24e05",
+    {
+      input: {
+        prompt_a: prompt,
+        denoising: 0.75,
+        seed_image_id: "vibes",
+        num_inference_steps: 50,
+      },
+    }
+  );
+
+  const audioUrl = (output as any).audio;
+  if (!audioUrl) throw new Error("No audio in Riffusion output");
+  return audioUrl;
+}
