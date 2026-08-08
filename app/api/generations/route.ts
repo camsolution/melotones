@@ -55,7 +55,14 @@ export async function POST(request: Request) {
 
   // 4. Lancer la génération via l’orchestrateur vocal (Suno, Udio, Mureka)
   try {
-    const prompt = `A ${style} song for ${occasion}, about: ${custom_message}`;
+    const styleDescriptors: Record<string, string> = {
+      mbalax: 'Mbalax Senegalese style: fast sabar drum percussion, polyrhythmic tama talking drum, call-and-response vocal structure, energetic griot-style singing, danceable groove',
+      afrobeat: 'Afrobeat style: syncopated horn sections, funky basslines, layered percussion, call-and-response chants',
+      coupedecale: 'Coupé-Décalé style: upbeat Ivorian dance rhythm, electronic percussion, chant-driven vocals, festive energy',
+    };
+    const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
+    const enrichedStyle = styleDescriptors[styleKey] || style;
+    const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
     const { predictionId } = await generateMusic(prompt, user.id);
 
     await supabase

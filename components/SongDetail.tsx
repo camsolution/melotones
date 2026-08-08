@@ -1,14 +1,43 @@
 'use client';
 import { Generation } from '@/types';
 import { Download, Share2, MessageCircle, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function SongDetail({ song }: { song: Generation }) {
+export default function SongDetail({ song: initialSong }: { song: Generation }) {
   const { t } = useLanguage();
+  const [song, setSong] = useState<Generation>(initialSong);
   const [copied, setCopied] = useState(false);
+  const pollCount = useRef(0);
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `${t('Écoutez ma chanson générée par IA sur Melotones !', 'Listen to my AI-generated song on Melotones!')} ${song.occasion} · ${song.style}`;
+
+  useEffect(() => {
+    if (song.status === 'completed' || song.status === 'failed') return;
+
+    const interval = setInterval(async () => {
+      pollCount.current += 1;
+      // Arrêt de sécurité après ~2 minutes (24 x 5s) pour éviter un polling infini
+      if (pollCount.current > 24) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/generations/${song.id}`);
+        if (res.ok) {
+          const updated = await res.json();
+          setSong(updated);
+          if (updated.status === 'completed' || updated.status === 'failed') {
+            clearInterval(interval);
+          }
+        }
+      } catch (err) {
+        console.error('Erreur de polling:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [song.id, song.status]);
 
   return (
     <div className="card max-w-2xl mx-auto text-center">
@@ -32,7 +61,9 @@ export default function SongDetail({ song }: { song: Generation }) {
             </button>
           </div>
         </>
-      ) : song.status === 'processing' ? (
+      ) : song.status === 'failed' ? (
+        <p className="text-red-500">{t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>
+      ) : (
         <div className="flex flex-col items-center py-10">
           <svg className="animate-spin h-12 w-12 text-brand-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -41,8 +72,6 @@ export default function SongDetail({ song }: { song: Generation }) {
           <p className="text-lg font-medium text-gray-700">{t('Génération en cours…', 'Generating…')}</p>
           <p className="text-gray-500 mt-1">{t('Cela peut prendre 30 à 60 secondes.', 'This may take 30 to 60 seconds.')}</p>
         </div>
-      ) : (
-        <p className="text-red-500">{t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>
       )}
     </div>
   );

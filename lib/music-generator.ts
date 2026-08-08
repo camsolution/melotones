@@ -1,15 +1,18 @@
-import { createSoniloPrediction, checkSoniloPrediction } from './music-providers/sonilo';
+import { checkSoniloPrediction } from './music-providers/sonilo';
 import { createMusicGPTPrediction, checkMusicGPTPrediction } from './music-providers/musicgpt';
 
-type Provider = 'sonilo' | 'musicgpt';
+type Provider = 'musicgpt';
 
 interface PredictionResult {
   predictionId: string;
   provider: Provider;
 }
 
-// Priorité : Sonilo puis MusicGPT
-const providers: Provider[] = ['sonilo', 'musicgpt'];
+// Sonilo retiré : c'est une API vidéo-vers-musique (bandes-son synchronisées),
+// pas adaptée à la génération de chansons vocales personnalisées.
+// Conservé uniquement en lecture (checkPrediction) pour compatibilité
+// avec d'anciennes générations déjà en base.
+const providers: Provider[] = ['musicgpt'];
 
 export async function generateMusic(prompt: string, userId: string): Promise<PredictionResult> {
   for (const provider of providers) {
@@ -22,13 +25,12 @@ export async function generateMusic(prompt: string, userId: string): Promise<Pre
     }
   }
   throw new Error(
-    'Aucun fournisseur vocal configuré. Veuillez définir SONILO_API_KEY ou MUSICGPT_API_KEY.'
+    'Aucun fournisseur vocal configuré. Veuillez définir MUSICGPT_API_KEY.'
   );
 }
 
 async function createPrediction(provider: Provider, prompt: string, userId: string): Promise<string> {
   switch (provider) {
-    case 'sonilo': return createSoniloPrediction(prompt, userId);
     case 'musicgpt': return createMusicGPTPrediction(prompt, userId);
     default: throw new Error('Provider inconnu');
   }
