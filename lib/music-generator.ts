@@ -1,42 +1,40 @@
-import { createSunoPrediction, checkSunoPrediction } from './music-providers/suno';
-import { createUdioPrediction, checkUdioPrediction } from './music-providers/udio';
-import { createMurekaPrediction, checkMurekaPrediction } from './music-providers/mureka';
+import { createElevenMusicPrediction, checkElevenMusicPrediction } from './music-providers/eleven-music';
+import { createGoogleLyriaPrediction, checkGoogleLyriaPrediction } from './music-providers/google-lyria';
 
-type Provider = 'suno' | 'udio' | 'mureka';
+type Provider = 'eleven-music' | 'google-lyria';
 
 interface PredictionResult {
   predictionId: string;
   provider: Provider;
 }
 
-// Ordre de priorité : Suno > Udio > Mureka
-const providers: Provider[] = ['suno', 'udio', 'mureka'];
+const providers: Provider[] = ['eleven-music', 'google-lyria'];
 
 export async function generateMusic(prompt: string, userId: string): Promise<PredictionResult> {
   for (const provider of providers) {
     try {
       const predictionId = await createPrediction(provider, prompt, userId);
       return { predictionId, provider };
-    } catch (err) {
-      console.warn(`⚠️ ${provider} indisponible, basculement...`);
+    } catch (err: any) {
+      console.warn(`⚠️ ${provider} a échoué :`, err.message);
       continue;
     }
   }
-  throw new Error('Aucun fournisseur vocal n’est configuré. Veuillez définir une clé API (SUNO_API_KEY, UDIO_API_KEY, MUREKA_API_KEY).');
+  throw new Error(
+    'Aucun fournisseur vocal configuré. Veuillez définir ELEVEN_MUSIC_API_KEY ou GOOGLE_LYRIA_API_KEY.'
+  );
 }
 
 async function createPrediction(provider: Provider, prompt: string, userId: string): Promise<string> {
   switch (provider) {
-    case 'suno': return createSunoPrediction(prompt, userId);
-    case 'udio': return createUdioPrediction(prompt, userId);
-    case 'mureka': return createMurekaPrediction(prompt, userId);
+    case 'eleven-music': return createElevenMusicPrediction(prompt, userId);
+    case 'google-lyria': return createGoogleLyriaPrediction(prompt, userId);
     default: throw new Error('Provider inconnu');
   }
 }
 
 export async function checkPrediction(predictionId: string): Promise<string | null> {
-  if (predictionId.startsWith('suno_')) return checkSunoPrediction(predictionId);
-  if (predictionId.startsWith('udio_')) return checkUdioPrediction(predictionId);
-  if (predictionId.startsWith('mureka_')) return checkMurekaPrediction(predictionId);
+  if (predictionId.startsWith('eleven_')) return checkElevenMusicPrediction(predictionId);
+  if (predictionId.startsWith('lyria_')) return checkGoogleLyriaPrediction(predictionId);
   return null;
 }
