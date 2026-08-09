@@ -1,15 +1,31 @@
-
 'use client';
 import Link from 'next/link';
+import { useEffect, useState, useMemo } from 'react';
 import UserCounter from '@/components/UserCounter';
 import Testimonials from '@/components/Testimonials';
 import CommunitySongs from '@/components/CommunitySongs';
 import SearchFilters from '@/components/SearchFilters';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ExampleSong } from '@/types';
+import { createClient } from '@/lib/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSong[] }) {
   const { t } = useLanguage();
+  const [session, setSession] = useState<Session | null>(null);
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const primaryCtaHref = session ? '/create' : '/signup';
+  const primaryCtaLabel = session
+    ? t('Créer une chanson', 'Create a song')
+    : t('Essayez gratuitement', 'Try for free');
+
   return (
     <div>
       <section className="text-center py-16 md:py-24 px-4 relative overflow-hidden">
@@ -21,7 +37,7 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
           {t('Anniversaires, mariages, baptêmes, hommages… Transformez n’importe quel message en un morceau unique et émouvant.', 'Birthdays, weddings, christenings, tributes… Turn any message into a unique and moving song.')}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-          <Link href="/signup" className="btn-primary text-lg px-8 py-4">{t('Essayez gratuitement', 'Try for free')}</Link>
+          <Link href={primaryCtaHref} className="btn-primary text-lg px-8 py-4">{primaryCtaLabel}</Link>
           <Link href="#examples" className="btn-secondary text-lg px-8 py-4">{t('Écouter des exemples', 'Listen to samples')}</Link>
         </div>
         <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
@@ -52,4 +68,3 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
     </div>
   );
 }
-
