@@ -1,6 +1,7 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
+import { supabaseAdmin } from '@/lib/admin';
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
@@ -12,31 +13,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  // 1. Vérifier / créer les crédits
+  // 1. Vérifier / créer les crédits (et récupérer le statut admin au passage)
   let { data: creditRow, error: creditError } = await supabase
     .from('user_credits')
-    .select('balance')
+    .select('balance, is_admin')
     .eq('user_id', user.id)
     .single();
+
   if (creditError || !creditRow) {
     const { error: insertError } = await supabase
       .from('user_credits')
       .insert({ user_id: user.id, balance: 3 });
     if (insertError) return NextResponse.json({ error: 'Failed to initialize credits' }, { status: 500 });
-    creditRow = { balance: 3 };
-  }
-  if (creditRow.balance < 1) {
-    return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
+    creditRow = { balance: 3, is_admin: false };
   }
 
-  // 2. Déduire 1 crédit
-  const { error: deductError } = await supabase
-    .from('user_credits')
-    .update({ balance: creditRow.balance - 1 })
-    .eq('user_id', user.id);
-  if (deductError) return NextResponse.json({ error: 'Credit deduction failed' }, { status: 500 });
+  const isAdmin = creditRow.is_admin === true;
 
-  // 3. Créer l’enregistrement
+  // 2. Les admins ne consomment jamais de crédit et ne sont jamais bloqués par le solde
+  if (!isAdmin) {
+    if (creditRow.balance < 1) {
+      return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
+    }
+    const { error: deductError } = await supabase
+      .from('user_credits')
+      .update({ balance: creditRow.balance - 1 })
+      .eq('user_id', user.id);
+    if (deductError) return NextResponse.json({ error: 'Credit deduction failed' }, { status: 500 });
+  }
+
+  // 3. Créer l'enregistrement
   const { data: generation, error: insertError } = await supabase
     .from('generations')
     .insert({
@@ -48,12 +54,15 @@ export async function POST(request: Request) {
     })
     .select()
     .single();
+
   if (insertError || !generation) {
-    await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
+    if (!isAdmin) {
+      await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
+    }
     return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
   }
 
-  // 4. Lancer la génération via l’orchestrateur vocal (Suno, Udio, Mureka)
+  // 4. Lancer la génération via l'orchestrateur vocal
   try {
     const styleDescriptors: Record<string, string> = {
       mbalax: 'Mbalax Senegalese style: fast sabar drum percussion, polyrhythmic tama talking drum, call-and-response vocal structure, energetic griot-style singing, danceable groove',
@@ -63,6 +72,7 @@ export async function POST(request: Request) {
     const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
     const enrichedStyle = styleDescriptors[styleKey] || style;
     const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
+
     const { predictionId } = await generateMusic(prompt, user.id);
 
     await supabase
@@ -73,8 +83,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: generation.id, status: 'processing' });
   } catch (err: any) {
     console.error('Generation launch error:', err);
-    // Rembourser le crédit
-    await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
+    if (!isAdmin) {
+      await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
+    }
     await supabase.from('generations').update({ status: 'failed' }).eq('id', generation.id);
     const message = err.message || 'AI generation failed';
     return NextResponse.json({ error: message }, { status: 500 });
