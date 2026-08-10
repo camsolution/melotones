@@ -4,13 +4,18 @@ export async function createMusicGPTPrediction(prompt: string, userId: string): 
   const apiKey = process.env.MUSICGPT_API_KEY;
   if (!apiKey) throw new Error('MusicGPT non configuré (MUSICGPT_API_KEY manquant)');
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
   const res = await fetch(`${MUSICGPT_API_BASE}/MusicAI`, {
     method: 'POST',
     headers: {
       'Authorization': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ music_style: prompt }),
+    body: JSON.stringify({
+      music_style: prompt,
+      webhook_url: `${siteUrl}/api/webhooks/musicgpt`,
+    }),
   });
 
   if (!res.ok) {
@@ -43,7 +48,6 @@ export async function checkMusicGPTPrediction(predictionId: string): Promise<str
 
   const status = (conversion.status || '').toUpperCase();
   if (status === 'COMPLETED') {
-    // MusicGPT retourne 2 versions par génération, on prend la première
     return conversion.conversion_path_1 || conversion.conversion_path_2 || null;
   }
   return null;

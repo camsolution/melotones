@@ -1,6 +1,6 @@
 'use client';
 import { Generation } from '@/types';
-import { Download, Share2, MessageCircle, Copy, Check } from 'lucide-react';
+import { Download, Share2, MessageCircle, Copy, Check, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -8,36 +8,48 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
   const { t } = useLanguage();
   const [song, setSong] = useState<Generation>(initialSong);
   const [copied, setCopied] = useState(false);
+  const [pollGaveUp, setPollGaveUp] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const pollCount = useRef(0);
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `${t('Écoutez ma chanson générée par IA sur Melotones !', 'Listen to my AI-generated song on Melotones!')} ${song.occasion} · ${song.style}`;
 
+  const fetchLatest = async () => {
+    const res = await fetch(`/api/generations/${song.id}`);
+    if (res.ok) {
+      const updated = await res.json();
+      setSong(updated);
+      return updated;
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (song.status === 'completed' || song.status === 'failed') return;
+    setPollGaveUp(false);
 
+    // 40 tentatives × 5s = ~3min20, un peu plus large pour les styles moins courants
     const interval = setInterval(async () => {
       pollCount.current += 1;
-      // Arrêt de sécurité après ~2 minutes (24 x 5s) pour éviter un polling infini
-      if (pollCount.current > 24) {
+      if (pollCount.current > 40) {
         clearInterval(interval);
+        setPollGaveUp(true);
         return;
       }
-      try {
-        const res = await fetch(`/api/generations/${song.id}`);
-        if (res.ok) {
-          const updated = await res.json();
-          setSong(updated);
-          if (updated.status === 'completed' || updated.status === 'failed') {
-            clearInterval(interval);
-          }
-        }
-      } catch (err) {
-        console.error('Erreur de polling:', err);
+      const updated = await fetchLatest();
+      if (updated?.status === 'completed' || updated?.status === 'failed') {
+        clearInterval(interval);
       }
     }, 5000);
 
     return () => clearInterval(interval);
   }, [song.id, song.status]);
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchLatest();
+    setRefreshing(false);
+  };
 
   return (
     <div className="card max-w-2xl mx-auto text-center">
@@ -70,7 +82,16 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           <p className="text-lg font-medium text-gray-700">{t('Génération en cours…', 'Generating…')}</p>
-          <p className="text-gray-500 mt-1">{t('Cela peut prendre 30 à 60 secondes.', 'This may take 30 to 60 seconds.')}</p>
+          <p className="text-gray-500 mt-1">{t('Cela peut prendre 30 à 90 secondes selon le style.', 'This may take 30 to 90 seconds depending on the style.')}</p>
+          {pollGaveUp && (
+            <div className="mt-6">
+              <p className="text-sm text-gray-500 mb-2">{t('Ça prend plus de temps que prévu.', 'Taking longer than expected.')}</p>
+              <button onClick={handleManualRefresh} disabled={refreshing} className="btn-secondary flex items-center gap-2 mx-auto">
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? t('Vérification…', 'Checking…') : t('Vérifier maintenant', 'Check now')}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
