@@ -2,38 +2,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import {
-  Sparkles, AlertTriangle, Mic, MicOff, Wand2, ChevronLeft,
-  Cake, Gem, Droplet, GraduationCap, Flame, Gift, HeartHandshake,
-  TrendingUp, HeartCrack, PartyPopper,
-  Drum, Music2, Waves, Footprints, Mic2, Disc3, Guitar, Church, Zap, Music4, Palmtree,
-  type LucideIcon,
-} from 'lucide-react';
+import { Sparkles, AlertTriangle, Mic, MicOff, Wand2, ChevronLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { occasionTranslations, styleTranslations } from '@/lib/listTranslations';
-import { styleIconName, styleGradient } from '@/lib/styleMeta';
-import { occasionIconName, occasionGradient } from '@/lib/occasionMeta';
+import { styleMeta } from '@/lib/styleMeta';
+import { occasionMeta } from '@/lib/occasionMeta';
 
 const occasions = Object.keys(occasionTranslations);
 const styles = Object.keys(styleTranslations);
 
-const ICONS: Record<string, LucideIcon> = {
-  Cake, Gem, Droplet, GraduationCap, Flame, Gift, HeartHandshake,
-  TrendingUp, HeartCrack, PartyPopper,
-  Drum, Music2, Waves, Footprints, Mic2, Disc3, Guitar, Church, Zap, Music4, Palmtree,
-};
-
-function AvatarBadge({ iconName, gradient, active }: { iconName: string; gradient: string; active: boolean }) {
-  const Icon = ICONS[iconName] || Sparkles;
-  return (
-    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md ${active ? 'ring-2 ring-offset-2 ring-brand-600' : ''}`}>
-      <Icon className="w-6 h-6 text-white" strokeWidth={2} />
-    </div>
-  );
-}
-
 type Gender = 'male' | 'female' | 'duet';
 const STEPS = ['occasion', 'style', 'voice', 'message', 'review'] as const;
+type Step = typeof STEPS[number];
 
 export default function CreateForm() {
   const { lang, t } = useLanguage();
@@ -45,7 +25,6 @@ export default function CreateForm() {
   const [status, setStatus] = useState<'idle' | 'generating' | 'error'>('idle');
   const [error, setError] = useState('');
   const [balance, setBalance] = useState<number | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [lyricLoading, setLyricLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -55,10 +34,7 @@ export default function CreateForm() {
   const step = STEPS[stepIndex];
 
   useEffect(() => {
-    fetch('/api/me').then(r => r.json()).then(d => {
-      setBalance(d.balance ?? null);
-      setIsAdmin(!!d.is_admin);
-    }).catch(() => {});
+    fetch('/api/me').then(r => r.json()).then(d => setBalance(d.balance ?? null)).catch(() => {});
   }, []);
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;
@@ -101,7 +77,7 @@ export default function CreateForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ occasion, style, hint: message }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       if (res.ok && data.text) setMessage(data.text);
       else alert(data.error || t('Erreur du générateur de paroles.', 'Lyric generator error.'));
     } catch {
@@ -123,7 +99,7 @@ export default function CreateForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ occasion, style, custom_message: message, voice_gender: gender }),
       });
-      const data = await res.json().catch(() => ({ error: 'Réponse serveur invalide' }));
+      const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
       router.push(`/songs/${data.id}`);
     } catch (err: any) {
@@ -131,8 +107,6 @@ export default function CreateForm() {
       setStatus('error');
     }
   };
-
-  const needsCredits = !isAdmin && balance !== null && balance < 1;
 
   return (
     <div className="card max-w-2xl mx-auto">
@@ -156,7 +130,7 @@ export default function CreateForm() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
             {occasions.map(o => (
               <button key={o} onClick={() => setOccasion(o)} className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${occasion === o ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-brand-200'}`}>
-                <AvatarBadge iconName={occasionIconName[o]} gradient={occasionGradient[o]} active={occasion === o} />
+                <span className="text-3xl">{occasionMeta[o]}</span>
                 <span className="text-sm font-medium text-gray-700">{getOccasionLabel(o)}</span>
               </button>
             ))}
@@ -170,12 +144,16 @@ export default function CreateForm() {
           <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Quel style de musique ?', 'What music style?')}</h2>
           <p className="text-gray-500 mb-6">{t('Choisis l\'ambiance de ta chanson', 'Choose your song\'s vibe')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-            {styles.map(s => (
-              <button key={s} onClick={() => setStyle(s)} className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-brand-200'}`}>
-                <AvatarBadge iconName={styleIconName[s]} gradient={styleGradient[s]} active={style === s} />
-                <span className="text-sm font-medium text-gray-700">{getStyleLabel(s)}</span>
-              </button>
-            ))}
+            {styles.map(s => {
+              const meta = styleMeta[s] || { emoji: '🎵', gradient: 'from-brand-500 to-pink-500' };
+              return (
+                <button key={s} onClick={() => setStyle(s)} className={`relative overflow-hidden flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s ? 'border-brand-600' : 'border-gray-200 hover:border-brand-200'}`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${meta.gradient} opacity-10`} />
+                  <span className="text-3xl relative">{meta.emoji}</span>
+                  <span className="text-sm font-medium text-gray-700 relative">{getStyleLabel(s)}</span>
+                </button>
+              );
+            })}
           </div>
           <div className="flex gap-3">
             <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
@@ -190,12 +168,12 @@ export default function CreateForm() {
           <p className="text-gray-500 mb-6">{t('Homme, femme ou duo ?', 'Male, female or duet?')}</p>
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
-              { key: 'male' as Gender, label: t('Homme', 'Male'), gradient: 'from-blue-500 to-indigo-600' },
-              { key: 'female' as Gender, label: t('Femme', 'Female'), gradient: 'from-pink-500 to-fuchsia-600' },
-              { key: 'duet' as Gender, label: t('Duo', 'Duet'), gradient: 'from-violet-500 to-purple-600' },
+              { key: 'male' as Gender, emoji: '👨', label: t('Homme', 'Male') },
+              { key: 'female' as Gender, emoji: '👩', label: t('Femme', 'Female') },
+              { key: 'duet' as Gender, emoji: '👫', label: t('Duo', 'Duet') },
             ].map(g => (
               <button key={g.key} onClick={() => setGender(g.key)} className={`flex flex-col items-center gap-2 py-6 rounded-2xl border-2 transition-all ${gender === g.key ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-brand-200'}`}>
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${g.gradient} shadow-md`} />
+                <span className="text-3xl">{g.emoji}</span>
                 <span className="text-sm font-medium text-gray-700">{g.label}</span>
               </button>
             ))}
@@ -236,15 +214,11 @@ export default function CreateForm() {
 
       {step === 'review' && (
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">
-            {isAdmin ? t('Prêt à créer ta chanson 🎉', 'Ready to create your song 🎉') : t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
           <p className="text-gray-500 mb-6">
-            {isAdmin
-              ? t('Compte admin : génération illimitée', 'Admin account: unlimited generation')
-              : needsCredits
-                ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
-                : t('Prêt à créer ta chanson', 'Ready to create your song')}
+            {balance !== null && balance < 1
+              ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
+              : t('Prêt à créer ta chanson', 'Ready to create your song')}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-center">
             <div className="p-4 rounded-xl bg-gray-50"><p className="text-2xl mb-1">🎵</p><p className="text-xs text-gray-600">{t('Chanson unique', 'Unique song')}</p></div>
@@ -254,7 +228,7 @@ export default function CreateForm() {
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           <div className="flex gap-3">
             <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            {needsCredits ? (
+            {balance !== null && balance < 1 ? (
               <a href="/dashboard" className="btn-primary flex-1 text-center">{t('Acheter des Notes', 'Buy Notes')}</a>
             ) : (
               <button onClick={handleSubmit} disabled={status === 'generating'} className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -272,7 +246,7 @@ export default function CreateForm() {
               </button>
             )}
           </div>
-          {!isAdmin && <p className="text-center text-xs text-gray-400 mt-4">🔒 {t('Paiement sécurisé • Mobile Money & Carte', 'Secure payment • Mobile Money & Card')}</p>}
+          <p className="text-center text-xs text-gray-400 mt-4">🔒 {t('Paiement sécurisé • Mobile Money & Carte', 'Secure payment • Mobile Money & Card')}</p>
         </div>
       )}
     </div>

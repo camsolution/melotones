@@ -1,7 +1,7 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
-import { styleDescriptors, buildSafePrompt } from '@/lib/styleDescriptors';
+import { styleDescriptors } from '@/lib/styleDescriptors';
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
@@ -55,13 +55,11 @@ export async function POST(request: Request) {
 
   try {
     const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
-    const musicStyle = style; // court, respecte la limite 300 car.
-    const styleEssence = styleDescriptors[styleKey] || style;
-    // prompt : construit pour ne JAMAIS dépasser 300 caractères, message perso priorisé
-    const promptText = buildSafePrompt(styleEssence, occasion, custom_message);
+    const enrichedStyle = styleDescriptors[styleKey] || style;
+    const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
 
     const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
-    const { predictionId } = await generateMusic({ musicStyle, promptText, gender: genderParam });
+    const { predictionId } = await generateMusic(prompt, user.id, genderParam);
 
     await supabase
       .from('generations')

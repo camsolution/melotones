@@ -2,28 +2,24 @@ const MUSICGPT_API_BASE = 'https://api.musicgpt.com/api/public/v1';
 
 type GenderOption = 'male' | 'female' | 'duet';
 
-interface CreatePredictionParams {
-  musicStyle: string;  // court, ex: "Mbalax" — limité à 300 caractères par MusicGPT
-  promptText: string;  // description libre : occasion, thème, message personnalisé
-  gender?: GenderOption;
-}
-
-export async function createMusicGPTPrediction(params: CreatePredictionParams): Promise<string> {
+export async function createMusicGPTPrediction(
+  prompt: string,
+  userId: string,
+  gender?: GenderOption
+): Promise<string> {
   const apiKey = process.env.MUSICGPT_API_KEY;
   if (!apiKey) throw new Error('MusicGPT non configuré (MUSICGPT_API_KEY manquant)');
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-  // Sécurité : music_style ne doit jamais dépasser 300 caractères
-  const musicStyle = params.musicStyle.slice(0, 300);
-
   const body: Record<string, any> = {
-    music_style: musicStyle,
-    prompt: params.promptText,
+    music_style: prompt,
     webhook_url: `${siteUrl}/api/webhooks/musicgpt`,
   };
-  if (params.gender === 'male' || params.gender === 'female') {
-    body.gender = params.gender;
+  // MusicGPT ne supporte pas nativement "duet" en tant que valeur gender —
+  // dans ce cas on laisse le modèle libre (souvent il alterne naturellement).
+  if (gender === 'male' || gender === 'female') {
+    body.gender = gender;
   }
 
   const res = await fetch(`${MUSICGPT_API_BASE}/MusicAI`, {
@@ -37,7 +33,7 @@ export async function createMusicGPTPrediction(params: CreatePredictionParams): 
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`MusicGPT error: ${err.message || err.error_code || res.statusText}`);
+    throw new Error(`MusicGPT error: ${err.message || res.statusText}`);
   }
 
   const data = await res.json();

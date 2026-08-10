@@ -4,12 +4,6 @@ import { createMusicGPTPrediction, checkMusicGPTPrediction } from './music-provi
 type Provider = 'musicgpt';
 type GenderOption = 'male' | 'female' | 'duet';
 
-interface GenerateParams {
-  musicStyle: string;
-  promptText: string;
-  gender?: GenderOption;
-}
-
 interface PredictionResult {
   predictionId: string;
   provider: Provider;
@@ -17,31 +11,23 @@ interface PredictionResult {
 
 const providers: Provider[] = ['musicgpt'];
 
-export async function generateMusic(params: GenerateParams): Promise<PredictionResult> {
-  const errors: string[] = [];
+export async function generateMusic(prompt: string, userId: string, gender?: GenderOption): Promise<PredictionResult> {
   for (const provider of providers) {
     try {
-      const predictionId = await createPrediction(provider, params);
+      const predictionId = await createPrediction(provider, prompt, userId, gender);
       return { predictionId, provider };
     } catch (err: any) {
       console.warn(`⚠️ ${provider} a échoué :`, err.message);
-      errors.push(`${provider}: ${err.message}`);
       continue;
     }
   }
-  throw new Error(errors.length > 0 ? errors.join(' | ') : 'Aucun fournisseur vocal configuré.');
+  throw new Error('Aucun fournisseur vocal configuré. Veuillez définir MUSICGPT_API_KEY.');
 }
 
-async function createPrediction(provider: Provider, params: GenerateParams): Promise<string> {
+async function createPrediction(provider: Provider, prompt: string, userId: string, gender?: GenderOption): Promise<string> {
   switch (provider) {
-    case 'musicgpt':
-      return createMusicGPTPrediction({
-        musicStyle: params.musicStyle,
-        promptText: params.promptText,
-        gender: params.gender,
-      });
-    default:
-      throw new Error('Provider inconnu');
+    case 'musicgpt': return createMusicGPTPrediction(prompt, userId, gender);
+    default: throw new Error('Provider inconnu');
   }
 }
 
