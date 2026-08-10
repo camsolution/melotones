@@ -12,16 +12,19 @@ interface PredictionResult {
 const providers: Provider[] = ['musicgpt'];
 
 export async function generateMusic(prompt: string, userId: string, gender?: GenderOption): Promise<PredictionResult> {
+  const errors: string[] = [];
   for (const provider of providers) {
     try {
       const predictionId = await createPrediction(provider, prompt, userId, gender);
       return { predictionId, provider };
     } catch (err: any) {
       console.warn(`⚠️ ${provider} a échoué :`, err.message);
+      errors.push(`${provider}: ${err.message}`);
       continue;
     }
   }
-  throw new Error('Aucun fournisseur vocal configuré. Veuillez définir MUSICGPT_API_KEY.');
+  // On remonte la VRAIE raison de l'échec au lieu d'un message générique trompeur
+  throw new Error(errors.length > 0 ? errors.join(' | ') : 'Aucun fournisseur vocal configuré.');
 }
 
 async function createPrediction(provider: Provider, prompt: string, userId: string, gender?: GenderOption): Promise<string> {

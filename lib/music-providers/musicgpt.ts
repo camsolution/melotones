@@ -33,7 +33,7 @@ export async function createMusicGPTPrediction(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`MusicGPT error: ${err.message || res.statusText}`);
+    throw new Error(`MusicGPT error: ${err.message || err.error_code || res.statusText}`);
   }
 
   const data = await res.json();
