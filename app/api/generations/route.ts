@@ -1,19 +1,18 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
-import { supabaseAdmin } from '@/lib/admin';
+import { styleDescriptors } from '@/lib/styleDescriptors';
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { occasion, style, custom_message } = await request.json();
+  const { occasion, style, custom_message, voice_gender } = await request.json();
   if (!occasion || !style || !custom_message) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  // 1. Vérifier / créer les crédits (et récupérer le statut admin au passage)
   let { data: creditRow, error: creditError } = await supabase
     .from('user_credits')
     .select('balance, is_admin')
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
 
   const isAdmin = creditRow.is_admin === true;
 
-  // 2. Les admins ne consomment jamais de crédit et ne sont jamais bloqués par le solde
   if (!isAdmin) {
     if (creditRow.balance < 1) {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
@@ -42,16 +40,9 @@ export async function POST(request: Request) {
     if (deductError) return NextResponse.json({ error: 'Credit deduction failed' }, { status: 500 });
   }
 
-  // 3. Créer l'enregistrement
   const { data: generation, error: insertError } = await supabase
     .from('generations')
-    .insert({
-      user_id: user.id,
-      occasion,
-      style,
-      custom_message,
-      status: 'queued',
-    })
+    .insert({ user_id: user.id, occasion, style, custom_message, voice_gender: voice_gender || null, status: 'queued' })
     .select()
     .single();
 
@@ -62,18 +53,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
   }
 
-  // 4. Lancer la génération via l'orchestrateur vocal
   try {
-    const styleDescriptors: Record<string, string> = {
-      mbalax: 'Mbalax Senegalese style: fast sabar drum percussion, polyrhythmic tama talking drum, call-and-response vocal structure, energetic griot-style singing, danceable groove',
-      afrobeat: 'Afrobeat style: syncopated horn sections, funky basslines, layered percussion, call-and-response chants',
-      coupedecale: 'Coupé-Décalé style: upbeat Ivorian dance rhythm, electronic percussion, chant-driven vocals, festive energy',
-    };
     const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
     const enrichedStyle = styleDescriptors[styleKey] || style;
     const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
 
-    const { predictionId } = await generateMusic(prompt, user.id);
+    const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
+    const { predictionId } = await generateMusic(prompt, user.id, genderParam);
 
     await supabase
       .from('generations')
@@ -87,7 +73,6 @@ export async function POST(request: Request) {
       await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
     }
     await supabase.from('generations').update({ status: 'failed' }).eq('id', generation.id);
-    const message = err.message || 'AI generation failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'AI generation failed' }, { status: 500 });
   }
 }

@@ -17,9 +17,10 @@ export const styleTranslations: Record<string, { fr: string; en: string }> = {
   Zouk: { fr: 'Zouk', en: 'Zouk' },
   'Coupé-Décalé': { fr: 'Coupé-Décalé', en: 'Coupé-Décalé' },
   Rap: { fr: 'Rap', en: 'Rap' },
-  RnB: { fr: 'RnB', en: 'RnB' },
+  RnB: { fr: 'R&B', en: 'R&B' },
   Acoustic: { fr: 'Acoustique', en: 'Acoustic' },
   Gospel: { fr: 'Gospel', en: 'Gospel' },
   Mbalax: { fr: 'Mbalax', en: 'Mbalax' },
   Highlife: { fr: 'Highlife', en: 'Highlife' },
+  Cabo: { fr: 'Cabo Love', en: 'Cabo Love' },
 };

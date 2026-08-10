@@ -2,36 +2,31 @@ import { checkSoniloPrediction } from './music-providers/sonilo';
 import { createMusicGPTPrediction, checkMusicGPTPrediction } from './music-providers/musicgpt';
 
 type Provider = 'musicgpt';
+type GenderOption = 'male' | 'female' | 'duet';
 
 interface PredictionResult {
   predictionId: string;
   provider: Provider;
 }
 
-// Sonilo retiré : c'est une API vidéo-vers-musique (bandes-son synchronisées),
-// pas adaptée à la génération de chansons vocales personnalisées.
-// Conservé uniquement en lecture (checkPrediction) pour compatibilité
-// avec d'anciennes générations déjà en base.
 const providers: Provider[] = ['musicgpt'];
 
-export async function generateMusic(prompt: string, userId: string): Promise<PredictionResult> {
+export async function generateMusic(prompt: string, userId: string, gender?: GenderOption): Promise<PredictionResult> {
   for (const provider of providers) {
     try {
-      const predictionId = await createPrediction(provider, prompt, userId);
+      const predictionId = await createPrediction(provider, prompt, userId, gender);
       return { predictionId, provider };
     } catch (err: any) {
       console.warn(`⚠️ ${provider} a échoué :`, err.message);
       continue;
     }
   }
-  throw new Error(
-    'Aucun fournisseur vocal configuré. Veuillez définir MUSICGPT_API_KEY.'
-  );
+  throw new Error('Aucun fournisseur vocal configuré. Veuillez définir MUSICGPT_API_KEY.');
 }
 
-async function createPrediction(provider: Provider, prompt: string, userId: string): Promise<string> {
+async function createPrediction(provider: Provider, prompt: string, userId: string, gender?: GenderOption): Promise<string> {
   switch (provider) {
-    case 'musicgpt': return createMusicGPTPrediction(prompt, userId);
+    case 'musicgpt': return createMusicGPTPrediction(prompt, userId, gender);
     default: throw new Error('Provider inconnu');
   }
 }
