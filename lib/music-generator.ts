@@ -4,6 +4,12 @@ import { createMusicGPTPrediction, checkMusicGPTPrediction } from './music-provi
 type Provider = 'musicgpt';
 type GenderOption = 'male' | 'female' | 'duet';
 
+interface GenerateParams {
+  musicStyle: string;
+  promptText: string;
+  gender?: GenderOption;
+}
+
 interface PredictionResult {
   predictionId: string;
   provider: Provider;
@@ -11,11 +17,11 @@ interface PredictionResult {
 
 const providers: Provider[] = ['musicgpt'];
 
-export async function generateMusic(prompt: string, userId: string, gender?: GenderOption): Promise<PredictionResult> {
+export async function generateMusic(params: GenerateParams): Promise<PredictionResult> {
   const errors: string[] = [];
   for (const provider of providers) {
     try {
-      const predictionId = await createPrediction(provider, prompt, userId, gender);
+      const predictionId = await createPrediction(provider, params);
       return { predictionId, provider };
     } catch (err: any) {
       console.warn(`⚠️ ${provider} a échoué :`, err.message);
@@ -23,14 +29,19 @@ export async function generateMusic(prompt: string, userId: string, gender?: Gen
       continue;
     }
   }
-  // On remonte la VRAIE raison de l'échec au lieu d'un message générique trompeur
   throw new Error(errors.length > 0 ? errors.join(' | ') : 'Aucun fournisseur vocal configuré.');
 }
 
-async function createPrediction(provider: Provider, prompt: string, userId: string, gender?: GenderOption): Promise<string> {
+async function createPrediction(provider: Provider, params: GenerateParams): Promise<string> {
   switch (provider) {
-    case 'musicgpt': return createMusicGPTPrediction(prompt, userId, gender);
-    default: throw new Error('Provider inconnu');
+    case 'musicgpt':
+      return createMusicGPTPrediction({
+        musicStyle: params.musicStyle,
+        promptText: params.promptText,
+        gender: params.gender,
+      });
+    default:
+      throw new Error('Provider inconnu');
   }
 }
 

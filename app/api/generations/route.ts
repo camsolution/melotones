@@ -55,11 +55,14 @@ export async function POST(request: Request) {
 
   try {
     const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
-    const enrichedStyle = styleDescriptors[styleKey] || style;
-    const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
+    // music_style : reste court (nom du style), respecte la limite de 300 caractères de MusicGPT
+    const musicStyle = style;
+    // prompt : description riche (occasion, thème, message perso) — pas de limite stricte connue
+    const styleDetail = styleDescriptors[styleKey] || style;
+    const promptText = `${styleDetail}. Song for ${occasion}, about: ${custom_message}`;
 
     const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
-    const { predictionId } = await generateMusic(prompt, user.id, genderParam);
+    const { predictionId } = await generateMusic({ musicStyle, promptText, gender: genderParam });
 
     await supabase
       .from('generations')
