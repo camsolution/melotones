@@ -24,15 +24,31 @@ export default function CreditsManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pack_id: selectedPack }),
       });
-      const data = await res.json();
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setErrorMsg(t('Le serveur a renvoyé une réponse inattendue.', 'Server returned an unexpected response.'));
+        setLoading(false);
+        return;
+      }
+
       if (!res.ok) {
         setErrorMsg(data.error || t('Erreur lors du paiement.', 'Payment error.'));
         setLoading(false);
         return;
       }
+
+      if (!data.payment_url) {
+        setErrorMsg(t('Aucune URL de paiement reçue.', 'No payment URL received.'));
+        setLoading(false);
+        return;
+      }
+
       window.location.href = data.payment_url;
-    } catch (err) {
-      setErrorMsg(t('Erreur réseau, réessayez.', 'Network error, please retry.'));
+    } catch (err: any) {
+      setErrorMsg(t('Impossible de contacter le serveur, vérifiez votre connexion.', 'Could not reach the server, check your connection.'));
       setLoading(false);
     }
   };
