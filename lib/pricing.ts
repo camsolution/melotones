@@ -1,12 +1,10 @@
+// Les tarifs sont maintenant gérés en base (table pricing_packs) via /api/pricing.
+// Ce type reste utilisé pour le typage côté client et serveur.
 export type Pack = {
   id: string;
   credits: number;
-  priceFcfa: number;
+  price_fcfa: number;
   label: string;
+  active?: boolean;
+  sort_order?: number;
 };
-
-export const PACKS: Pack[] = [
-  { id: 'decouverte', credits: 2, priceFcfa: 2800, label: 'Découverte' },
-  { id: 'populaire', credits: 8, priceFcfa: 3800, label: 'Populaire' },
-  { id: 'createur', credits: 20, priceFcfa: 9800, label: 'Créateur' },
-];
