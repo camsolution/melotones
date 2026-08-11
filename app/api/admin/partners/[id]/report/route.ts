@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, supabaseAdmin } from '@/lib/admin';
+import { requireAdmin, supabaseAdmin, getEmailsByIds } from '@/lib/admin';
 
 function csvEscape(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   if (couponIds.length > 0) {
     const { data, error: dbError } = await supabaseAdmin
       .from('purchase_requests')
-      .select('*, user:user_id(email)')
+      .select('*')
       .in('coupon_id', couponIds)
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
@@ -29,11 +29,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
     rows = data || [];
   }
 
+  const emailsById = await getEmailsByIds(rows.map((r) => r.user_id));
+
   const header = ['Email', 'Coupon', 'Pack', 'Notes', 'Prix payé (FCFA)', 'Date'];
   const lines = [header.join(',')];
   for (const r of rows) {
     lines.push([
-      csvEscape(r.user?.email || r.user_id),
+      csvEscape(emailsById.get(r.user_id) || r.user_id),
       csvEscape(couponByIdCode.get(r.coupon_id) || ''),
       csvEscape(r.pack_id),
       String(r.credits),

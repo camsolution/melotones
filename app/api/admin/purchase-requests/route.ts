@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, supabaseAdmin } from '@/lib/admin';
+import { requireAdmin, supabaseAdmin, getEmailsByIds } from '@/lib/admin';
 
 export async function GET() {
   const { error, status } = await requireAdmin();
@@ -7,18 +7,13 @@ export async function GET() {
 
   const { data, error: dbError } = await supabaseAdmin
     .from('purchase_requests')
-    .select('*, user:user_id(email)')
+    .select('*')
     .order('created_at', { ascending: false });
 
-  if (dbError) {
-    // fallback si la jointure auth.users échoue selon la config Supabase
-    const { data: raw, error: rawError } = await supabaseAdmin
-      .from('purchase_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (rawError) return NextResponse.json({ error: rawError.message }, { status: 500 });
-    return NextResponse.json(raw);
-  }
+  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
-  return NextResponse.json(data);
+  const emailsById = await getEmailsByIds((data || []).map((r) => r.user_id));
+  const withEmail = (data || []).map((r) => ({ ...r, user_email: emailsById.get(r.user_id) || r.user_id }));
+
+  return NextResponse.json(withEmail);
 }

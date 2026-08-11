@@ -21,4 +21,18 @@ export async function requireAdmin() {
   return { error: null, status: 200, user };
 }
 
+// PostgREST ne reconnaît pas de relation vers auth.users (schéma non exposé),
+// donc les jointures .select('*, user:user_id(email)') échouent silencieusement.
+// On récupère les emails via l'API Admin, par lots de requêtes en parallèle.
+export async function getEmailsByIds(ids: string[]): Promise<Map<string, string>> {
+  const uniqueIds = Array.from(new Set(ids));
+  const results = await Promise.all(
+    uniqueIds.map(async (id) => {
+      const { data } = await supabaseAdmin.auth.admin.getUserById(id);
+      return [id, data.user?.email || id] as const;
+    })
+  );
+  return new Map(results);
+}
+
 export { supabaseAdmin };

@@ -2,8 +2,8 @@
 import { useEffect, useState, useCallback } from 'react';
 
 type PurchaseRequest = {
-  id: string; user_id: string; pack_id: string; credits: number; price_fcfa: number;
-  payment_method: string; payment_reference: string | null; status: string; created_at: string;
+  id: string; user_id: string; user_email?: string; pack_id: string; credits: number; price_fcfa: number;
+  payment_method: string; payment_reference: string | null; coupon_id: string | null; status: string; created_at: string;
 };
 type Stats = { totalUsers: number; totalGenerations: number; pendingRequests: number; totalRevenueFcfa: number };
 type AdminUser = { id: string; email: string; created_at: string; last_sign_in_at: string | null; balance: number; is_admin: boolean; generations_count: number };
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
               {pending.map(r => (
                 <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-gray-800">{r.user_id}</p>
+                    <p className="font-semibold text-gray-800">{r.user_email || r.user_id}</p>
                     <p className="text-sm text-gray-600">{r.credits} notes · {r.price_fcfa.toLocaleString('fr-FR')} FCFA · {r.payment_method}</p>
                     <p className="text-xs text-gray-400">{new Date(r.created_at).toLocaleString('fr-FR')}</p>
                   </div>
@@ -244,7 +244,7 @@ export default function AdminDashboard() {
           <div className="space-y-2">
             {processed.map(r => (
               <div key={r.id} className="flex items-center justify-between text-sm text-gray-600 border-b border-gray-100 py-2">
-                <span>{r.user_id} — {r.credits} notes — {r.price_fcfa.toLocaleString('fr-FR')} FCFA</span>
+                <span>{r.user_email || r.user_id} — {r.credits} notes — {r.price_fcfa.toLocaleString('fr-FR')} FCFA</span>
                 <span className={r.status === 'approved' ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
                   {r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
                 </span>
