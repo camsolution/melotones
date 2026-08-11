@@ -35,6 +35,7 @@ export default function CreateForm() {
   const [isRecording, setIsRecording] = useState(false);
   const [lyricLoading, setLyricLoading] = useState(false);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [showCustomStyle, setShowCustomStyle] = useState(false);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -163,18 +164,40 @@ export default function CreateForm() {
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Quel style de musique ?', 'What music style?')}</h2>
           <p className="text-gray-500 mb-6">{t('Choisis l\'ambiance de ta chanson', 'Choose your song\'s vibe')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             {styles.map(s => {
               const meta = styleMeta[s] || { emoji: '🎵', gradient: 'from-brand-500 to-pink-500' };
               return (
-                <button key={s} onClick={() => setStyle(s)} className={`relative overflow-hidden flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s ? 'border-brand-600' : 'border-gray-200 hover:border-brand-200'}`}>
+                <button key={s} onClick={() => { setStyle(s); setShowCustomStyle(false); }} className={`relative overflow-hidden flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s && !showCustomStyle ? 'border-brand-600' : 'border-gray-200 hover:border-brand-200'}`}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${meta.gradient} opacity-10`} />
                   <span className="text-3xl relative">{meta.emoji}</span>
                   <span className="text-sm font-medium text-gray-700 relative">{getStyleLabel(s)}</span>
                 </button>
               );
             })}
+            <button
+              onClick={() => { setShowCustomStyle(true); setStyle(prev => (styles.includes(prev || '') ? '' : prev)); }}
+              className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 border-dashed transition-all ${showCustomStyle ? 'border-brand-600 bg-brand-50' : 'border-gray-300 hover:border-brand-200'}`}
+            >
+              <span className="text-3xl">✏️</span>
+              <span className="text-sm font-medium text-gray-700">{t('Autre style', 'Other style')}</span>
+            </button>
           </div>
+
+          {showCustomStyle && (
+            <div className="mb-6">
+              <input
+                type="text"
+                value={style ?? ''}
+                onChange={e => setStyle(e.target.value)}
+                maxLength={60}
+                autoFocus
+                placeholder={t('Décris ton style (ex : Jazz manouche, Reggaeton lent...)', 'Describe your style (e.g. Slow reggaeton, Gypsy jazz...)')}
+                className="w-full py-3 px-4 bg-white border-2 border-brand-300 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none"
+              />
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
             <button onClick={goNext} disabled={!style} className="btn-primary flex-1">{t('Continuer', 'Continue')}</button>
