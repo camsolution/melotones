@@ -12,8 +12,9 @@ type PricingPack = { id: string; credits: number; price_fcfa: number; label: str
 type Coupon = { id: string; code: string; partner_id: string; discount_percent: number; quota: number | null; used_count: number; active: boolean };
 type Partner = { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; active: boolean; coupons: Coupon[] };
 type Ad = { id: string; advertiser_name: string; media_url: string; media_type: 'image' | 'video'; target_url: string | null; active: boolean; sort_order: number };
+type FeaturedSong = { id: string; generation_id: string; active: boolean; generation: { id: string; occasion: string; style: string; status: string } | null };
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads'] as const;
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -24,6 +25,7 @@ const TAB_LABELS: Record<Tab, string> = {
   pricing: 'Tarifs',
   partners: 'Partenaires',
   ads: 'Publicité',
+  featured: 'Vedette',
 };
 
 export default function AdminDashboard() {
@@ -36,6 +38,9 @@ export default function AdminDashboard() {
   const [pricing, setPricing] = useState<PricingPack[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
+  const [featured, setFeatured] = useState<FeaturedSong[]>([]);
+  const [allCompletedGens, setAllCompletedGens] = useState<AdminGeneration[]>([]);
+  const [newFeaturedId, setNewFeaturedId] = useState('');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
@@ -44,7 +49,7 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
@@ -52,6 +57,8 @@ export default function AdminDashboard() {
       fetch('/api/admin/pricing'),
       fetch('/api/admin/partners'),
       fetch('/api/admin/ads'),
+      fetch('/api/admin/featured-songs'),
+      fetch('/api/admin/generations?status=completed'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
@@ -60,6 +67,8 @@ export default function AdminDashboard() {
     if (priceRes.ok) setPricing(await priceRes.json());
     if (partnersRes.ok) setPartners(await partnersRes.json());
     if (adsRes.ok) setAds(await adsRes.json());
+    if (featuredRes.ok) setFeatured(await featuredRes.json());
+    if (allGenRes.ok) setAllCompletedGens(await allGenRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -185,6 +194,33 @@ export default function AdminDashboard() {
     if (!confirm('Supprimer cette publicité ?')) return;
     setBusyId(id);
     const res = await fetch(`/api/admin/ads/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleCreateFeatured = async () => {
+    if (!newFeaturedId) return;
+    setBusyId('new-featured');
+    const res = await fetch('/api/admin/featured-songs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ generation_id: newFeaturedId }),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewFeaturedId(''); loadAll(); }
+    else { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur.'); }
+  };
+
+  const handleToggleFeatured = async (id: string, current: boolean) => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/featured-songs/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !current }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleDeleteFeatured = async (id: string) => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/featured-songs/${id}`, { method: 'DELETE' });
     setBusyId(null);
     if (res.ok) loadAll(); else alert('Erreur.');
   };
@@ -430,6 +466,43 @@ export default function AdminDashboard() {
               </div>
             ))}
             {ads.length === 0 && <p className="text-gray-500">Aucune publicité pour le moment.</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'featured' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h2 className="text-lg font-bold mb-4 text-gray-800">Mettre une chanson en vedette</h2>
+            <p className="text-xs text-gray-500 mb-3">Affichée sur l'accueil de tous les utilisateurs — occasion, style et audio uniquement, jamais le message personnel.</p>
+            <div className="flex flex-wrap gap-3">
+              <select value={newFeaturedId} onChange={e => setNewFeaturedId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[260px]">
+                <option value="">— Choisir une chanson terminée —</option>
+                {allCompletedGens.map(g => (
+                  <option key={g.id} value={g.id}>{g.occasion} · {g.style} · {g.user_email} · {new Date(g.created_at).toLocaleDateString('fr-FR')}</option>
+                ))}
+              </select>
+              <button disabled={busyId === 'new-featured' || !newFeaturedId} onClick={handleCreateFeatured} className="btn-primary text-sm">Mettre en vedette</button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {featured.map(f => (
+              <div key={f.id} className="card flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-[160px]">
+                  {f.generation ? (
+                    <p className="font-semibold text-gray-800 capitalize">{f.generation.occasion} · {f.generation.style}</p>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Chanson supprimée</p>
+                  )}
+                </div>
+                <button onClick={() => handleToggleFeatured(f.id, f.active)} className={`text-xs px-3 py-1 rounded-full ${f.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {f.active ? 'Actif' : 'Désactivé'}
+                </button>
+                <button disabled={busyId === f.id} onClick={() => handleDeleteFeatured(f.id)} className="text-xs text-red-400 hover:text-red-600">Retirer</button>
+              </div>
+            ))}
+            {featured.length === 0 && <p className="text-gray-500">Aucune chanson en vedette pour le moment.</p>}
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { Generation } from '@/types';
 import { styleMeta } from '@/lib/styleMeta';
 import { styleTranslations } from '@/lib/listTranslations';
 import AdSlot from '@/components/AdSlot';
+import FeaturedSong from '@/components/FeaturedSong';
 
 const QUICK_STYLES = ['Afrobeat', 'Amapiano', 'RnB', 'Reggae', 'Cabo'];
 
@@ -98,40 +99,44 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Notes / welcome card */}
-        <section className="rounded-[28px] p-6 bg-white border border-gray-200 shadow-xl flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl flex-none flex items-center justify-center text-white bg-gradient-to-br from-amber-400 to-magenta-500 shadow-lg shadow-magenta-200">
-              <Gift className="w-[22px] h-[22px]" strokeWidth={1.9} />
-            </div>
-            <div>
-              <div className="font-display font-bold text-[15.5px] text-gray-800">
-                {balance > 0 ? t('Tes Notes', 'Your Notes') : t('Offre de bienvenue', 'Welcome offer')}
+        {/* Notes / welcome card + pub (visibles sans défiler) */}
+        <div className="flex flex-col gap-5">
+          <section className="rounded-[28px] p-6 bg-white border border-gray-200 shadow-xl flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl flex-none flex items-center justify-center text-white bg-gradient-to-br from-amber-400 to-magenta-500 shadow-lg shadow-magenta-200">
+                <Gift className="w-[22px] h-[22px]" strokeWidth={1.9} />
               </div>
-              <div className="text-[13px] text-gray-500">
-                {balance > 0 ? t('Ton solde actuel', 'Your current balance') : t('Prêt·e pour ta première chanson ?', 'Ready for your first song?')}
+              <div>
+                <div className="font-display font-bold text-[15.5px] text-gray-800">
+                  {balance > 0 ? t('Tes Notes', 'Your Notes') : t('Offre de bienvenue', 'Welcome offer')}
+                </div>
+                <div className="text-[13px] text-gray-500">
+                  {balance > 0 ? t('Ton solde actuel', 'Your current balance') : t('Prêt·e pour ta première chanson ?', 'Ready for your first song?')}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-baseline gap-2">
-            <span className="font-display font-extrabold text-4xl text-gray-800 tabular-nums">{balance}</span>
-            <span className="text-sm text-gray-500 font-semibold">{t('Note(s) disponible(s)', 'Note(s) available')}</span>
-          </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display font-extrabold text-4xl text-gray-800 tabular-nums">{balance}</span>
+              <span className="text-sm text-gray-500 font-semibold">{t('Note(s) disponible(s)', 'Note(s) available')}</span>
+            </div>
 
-          <p className="text-[13px] text-gray-500">
-            {balance > 0
-              ? t('1 Note = 1 chanson générée. Lance ta prochaine création dès maintenant.', '1 Note = 1 generated song. Start your next creation now.')
-              : t('Chaque chanson coûte 1 Note. Achète ton premier pack pour composer ton titre.', 'Each song costs 1 Note. Buy your first pack to compose your track.')}
-          </p>
+            <p className="text-[13px] text-gray-500">
+              {balance > 0
+                ? t('1 Note = 1 chanson générée. Lance ta prochaine création dès maintenant.', '1 Note = 1 generated song. Start your next creation now.')
+                : t('Chaque chanson coûte 1 Note. Achète ton premier pack pour composer ton titre.', 'Each song costs 1 Note. Buy your first pack to compose your track.')}
+            </p>
 
-          <Link
-            href={balance > 0 ? '/create' : '/notes'}
-            className="w-full text-center font-bold text-[14px] py-3 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-          >
-            {balance > 0 ? t('Créer une chanson', 'Create a song') : t('Découvrir les packs de Notes', 'See Notes packs')}
-          </Link>
-        </section>
+            <Link
+              href={balance > 0 ? '/create' : '/notes'}
+              className="w-full text-center font-bold text-[14px] py-3 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
+            >
+              {balance > 0 ? t('Créer une chanson', 'Create a song') : t('Découvrir les packs de Notes', 'See Notes packs')}
+            </Link>
+          </section>
+
+          <AdSlot compact />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-5">
@@ -184,35 +189,37 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Stats teaser */}
-        <section className="lg:order-2 order-1 rounded-[28px] p-6 bg-white border border-gray-200 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display font-bold text-[15.5px] text-gray-800">{t('Statistiques', 'Statistics')}</h2>
-            <Link href="/statistiques" className="inline-flex items-center gap-1 text-[12.5px] font-bold text-brand-600 hover:text-brand-700">
-              {t('Détails', 'Details')} <ChevronRight className="w-[14px] h-[14px]" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-brand-500 to-violet-400 mb-2.5"><Disc3 className="w-4 h-4" /></div>
-              <div className="font-display font-extrabold text-xl text-gray-800 tabular-nums">{songs.length}</div>
-              <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Chansons créées', 'Songs created')}</div>
+        {/* Stats teaser + chanson en vedette */}
+        <div className="lg:order-2 order-1 flex flex-col gap-5">
+          <section className="rounded-[28px] p-6 bg-white border border-gray-200 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-bold text-[15.5px] text-gray-800">{t('Statistiques', 'Statistics')}</h2>
+              <Link href="/statistiques" className="inline-flex items-center gap-1 text-[12.5px] font-bold text-brand-600 hover:text-brand-700">
+                {t('Détails', 'Details')} <ChevronRight className="w-[14px] h-[14px]" />
+              </Link>
             </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-magenta-500 to-[#FF8FB3] mb-2.5"><Music2 className="w-4 h-4" /></div>
-              <div className="font-display font-extrabold text-xl text-gray-800 tabular-nums">{balance}</div>
-              <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Solde de Notes', 'Notes balance')}</div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-brand-500 to-violet-400 mb-2.5"><Disc3 className="w-4 h-4" /></div>
+                <div className="font-display font-extrabold text-xl text-gray-800 tabular-nums">{songs.length}</div>
+                <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Chansons créées', 'Songs created')}</div>
+              </div>
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-magenta-500 to-[#FF8FB3] mb-2.5"><Music2 className="w-4 h-4" /></div>
+                <div className="font-display font-extrabold text-xl text-gray-800 tabular-nums">{balance}</div>
+                <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Solde de Notes', 'Notes balance')}</div>
+              </div>
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[#3A2400] bg-gradient-to-br from-amber-400 to-amber-200 mb-2.5"><Star className="w-4 h-4" /></div>
+                <div className="font-display font-extrabold text-xl text-gray-800 truncate">{favoriteLabel}</div>
+                <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Genre favori', 'Favorite genre')}</div>
+              </div>
             </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[#3A2400] bg-gradient-to-br from-amber-400 to-amber-200 mb-2.5"><Star className="w-4 h-4" /></div>
-              <div className="font-display font-extrabold text-xl text-gray-800 truncate">{favoriteLabel}</div>
-              <div className="text-[11px] text-gray-500 font-semibold mt-0.5">{t('Genre favori', 'Favorite genre')}</div>
-            </div>
-          </div>
-        </section>
-      </div>
+          </section>
 
-      <AdSlot />
+          <FeaturedSong />
+        </div>
+      </div>
     </div>
   );
 }
