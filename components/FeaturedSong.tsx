@@ -25,6 +25,7 @@ export default function FeaturedSong() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>();
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export default function FeaturedSong() {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       ctx = new AudioCtx();
+      audioCtxRef.current = ctx;
       const source = ctx.createMediaElementSource(audio);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 64;
@@ -98,6 +100,7 @@ export default function FeaturedSong() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ctx?.close().catch(() => {});
+      audioCtxRef.current = null;
     };
   }, [song, ready, draw]);
 
@@ -108,6 +111,10 @@ export default function FeaturedSong() {
     if (gainRef.current && audioRef.current) {
       gainRef.current.gain.setTargetAtTime(next ? 0 : 1, audioRef.current.currentTime || 0, 0.05);
     }
+    // Le navigateur suspend l'AudioContext tant qu'aucun geste utilisateur direct
+    // ne le relance — sans ce reprise explicite, aucun son ne sort même une fois
+    // démuté. Le clic sur le haut-parleur EST ce geste, donc on en profite ici.
+    if (!next) audioCtxRef.current?.resume().catch(() => {});
     audioRef.current?.play().catch(() => {});
   };
 
