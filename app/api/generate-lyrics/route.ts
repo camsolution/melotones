@@ -1,11 +1,25 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const COOLDOWN_MS = 5000;
+// En mémoire par instance serverless : garde-fou best-effort contre le spam
+// rapide, pas une limite stricte multi-instance — suffisant pour un usage
+// interne au flux de création (l'utilisateur clique un bouton, pas un script).
+const lastCallByUser = new Map<string, number>();
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const now = Date.now();
+  const last = lastCallByUser.get(user.id);
+  if (last && now - last < COOLDOWN_MS) {
+    return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération de paroles.' }, { status: 429 });
+  }
+  lastCallByUser.set(user.id, now);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

@@ -24,8 +24,10 @@ export async function computeProviderBalanceEstimate() {
   const consumed = count ?? 0;
   const consumedUsd = consumed * (row.cost_per_generation_usd || 0);
   const estimatedRemainingUsd = Math.max(0, row.topped_up_usd - consumedUsd);
+  // + epsilon : contourne l'imprécision des flottants (ex. 9.95 / 0.05 peut
+  // valoir 198.9999999999997 en JS) qui ferait sous-estimer d'une unité.
   const estimatedRemainingGenerations = row.cost_per_generation_usd > 0
-    ? Math.floor(estimatedRemainingUsd / row.cost_per_generation_usd)
+    ? Math.floor(estimatedRemainingUsd / row.cost_per_generation_usd + 1e-9)
     : null;
 
   return {

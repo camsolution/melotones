@@ -4,6 +4,17 @@ import { NextResponse } from 'next/server';
 
 const MAX_SIZE = 8 * 1024 * 1024;
 
+function hasValidImageSignature(bytes: Uint8Array, mimeType: string): boolean {
+  const startsWith = (sig: number[]) => sig.every((b, i) => bytes[i] === b);
+  switch (mimeType) {
+    case 'image/png': return startsWith([0x89, 0x50, 0x4e, 0x47]);
+    case 'image/jpeg': return startsWith([0xff, 0xd8, 0xff]);
+    case 'image/gif': return startsWith([0x47, 0x49, 0x46, 0x38]);
+    case 'image/webp': return startsWith([0x52, 0x49, 0x46, 0x46]) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+    default: return false;
+  }
+}
+
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const supabase = createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -33,6 +44,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const buffer = await file.arrayBuffer();
+
+  // Le type MIME déclaré par le navigateur (file.type) est arbitraire côté
+  // client — on vérifie la signature binaire réelle du fichier pour éviter
+  // qu'un contenu quelconque soit déguisé en image via une extension usurpée.
+  if (!hasValidImageSignature(new Uint8Array(buffer), file.type)) {
+    return NextResponse.json({ error: 'Le contenu du fichier ne correspond pas à une image valide' }, { status: 400 });
+  }
+
   const fileName = `${user.id}/${params.id}.${ext}`;
 
   const { error: uploadError } = await supabaseAdmin.storage

@@ -4,10 +4,13 @@ import { NextResponse } from 'next/server';
 import { finalizeIfReady } from '@/lib/song-processing';
 import { localizeProviderError } from '@/lib/providerErrors';
 
+// Ne jamais renvoyer failure_reason (texte technique brut du fournisseur) tel
+// quel au client — seule la version traduite/simplifiée est exposée.
 async function withLocalizedError(gen: any, userId: string) {
-  if (gen?.status !== 'failed' || !gen.failure_reason) return gen;
+  const { failure_reason, ...safe } = gen ?? {};
+  if (gen?.status !== 'failed' || !failure_reason) return safe;
   const { data: creditRow } = await supabaseAdmin.from('user_credits').select('language').eq('user_id', userId).single();
-  return { ...gen, localized_error: localizeProviderError(gen.failure_reason, creditRow?.language || 'fr') };
+  return { ...safe, localized_error: localizeProviderError(failure_reason, creditRow?.language || 'fr') };
 }
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
