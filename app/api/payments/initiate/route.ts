@@ -9,6 +9,11 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { data: creditRow } = await supabaseAdmin.from('user_credits').select('is_admin').eq('user_id', user.id).single();
+  if (creditRow?.is_admin) {
+    return NextResponse.json({ error: 'Le compte administrateur génère des chansons sans consommer de Notes — aucun achat nécessaire.' }, { status: 403 });
+  }
+
   const { pack_id, payment_method, payment_reference, coupon_code } = await request.json();
   if (!pack_id || !payment_method) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });

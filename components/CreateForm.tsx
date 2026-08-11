@@ -40,6 +40,7 @@ export default function CreateForm() {
   const [status, setStatus] = useState<'idle' | 'generating' | 'error'>('idle');
   const [error, setError] = useState('');
   const [balance, setBalance] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [lyricLoading, setLyricLoading] = useState(false);
   const [packs, setPacks] = useState<Pack[]>([]);
@@ -52,7 +53,7 @@ export default function CreateForm() {
   const step = STEPS[stepIndex];
 
   useEffect(() => {
-    fetch('/api/me').then(r => r.json()).then(d => setBalance(d.balance ?? null)).catch(() => {});
+    fetch('/api/me').then(r => r.json()).then(d => { setBalance(d.balance ?? null); setIsAdmin(d.is_admin === true); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -61,10 +62,10 @@ export default function CreateForm() {
   }, []);
 
   useEffect(() => {
-    if (balance !== null && balance < 1 && packs.length === 0) {
+    if (!isAdmin && balance !== null && balance < 1 && packs.length === 0) {
       fetch('/api/pricing').then(r => r.json()).then(setPacks).catch(() => {});
     }
-  }, [balance]);
+  }, [balance, isAdmin]);
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;
   const getStyleLabel = (key: string) => styleTranslations[key]?.[lang] ?? key;
@@ -278,7 +279,6 @@ export default function CreateForm() {
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                maxLength={messageBudget.max}
                 className="w-full py-3.5 px-4 pr-12 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-300 outline-none min-h-[140px] text-[14.5px]"
                 placeholder={t('Ex : Joyeux anniversaire à mon ami Dioula...', 'E.g. Happy birthday to my friend...')}
               />
@@ -323,7 +323,7 @@ export default function CreateForm() {
           <div>
             <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
             <p className="text-gray-500 text-[15px] mb-6">
-              {balance !== null && balance < 1
+              {!isAdmin && balance !== null && balance < 1
                 ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
                 : t('Prêt à créer ta chanson', 'Ready to create your song')}
             </p>
@@ -343,7 +343,7 @@ export default function CreateForm() {
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-            {balance !== null && balance < 1 && (
+            {!isAdmin && balance !== null && balance < 1 && (
               <div className="mb-5">
                 <p className="text-sm font-bold text-gray-700 mb-2">{t('Nos offres de Notes', 'Our Notes packs')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -360,9 +360,9 @@ export default function CreateForm() {
 
             <div className="flex gap-3">
               <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
-              {balance === null ? (
+              {balance === null && !isAdmin ? (
                 <button disabled className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full bg-gray-100 text-gray-400">{t('Vérification du solde…', 'Checking balance…')}</button>
-              ) : balance < 1 ? (
+              ) : !isAdmin && balance !== null && balance < 1 ? (
                 <a href="/notes" className="flex-1 text-center font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200">{t('Acheter des Notes', 'Buy Notes')}</a>
               ) : (
                 <button onClick={handleSubmit} disabled={status === 'generating'} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 flex items-center justify-center gap-2 disabled:opacity-70">
