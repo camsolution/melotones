@@ -10,11 +10,15 @@ export async function GET() {
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
+  const unfiltered = await supabaseAdmin.from('ad_campaigns').select('*');
+  const countRes = await supabaseAdmin.from('ad_campaigns').select('*', { count: 'exact', head: true });
+  const partnersCheck = await supabaseAdmin.from('partners').select('*');
+
   console.log('DEBUG /api/ads', {
     data, error,
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 24),
-    keyLen: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+    unfiltered: unfiltered.data, unfilteredError: unfiltered.error,
+    count: countRes.count, countError: countRes.error,
+    partnersCount: partnersCheck.data?.length, partnersError: partnersCheck.error,
   });
   if (error) return NextResponse.json([]);
   return NextResponse.json(data || []);
