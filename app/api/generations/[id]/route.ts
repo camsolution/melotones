@@ -1,4 +1,5 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { finalizeIfReady } from '@/lib/song-processing';
 
@@ -31,4 +32,30 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 
   return NextResponse.json(gen);
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const supabase = createServerClientWithCookies();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { is_public } = await req.json();
+  if (typeof is_public !== 'boolean') {
+    return NextResponse.json({ error: 'is_public must be a boolean' }, { status: 400 });
+  }
+
+  // Vérifie l'ownership via le client authentifié, puis écrit via le
+  // service role — generations n'accorde plus d'écriture directe au client.
+  const { data: owned } = await supabase.from('generations').select('id').eq('id', params.id).eq('user_id', user.id).single();
+  if (!owned) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const { data, error } = await supabaseAdmin
+    .from('generations')
+    .update({ is_public })
+    .eq('id', params.id)
+    .select()
+    .single();
+
+  if (error || !data) return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+  return NextResponse.json(data);
 }

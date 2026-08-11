@@ -1,9 +1,10 @@
 'use client';
+import Link from 'next/link';
 import { ExampleSong } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 import SearchFilters from '@/components/SearchFilters';
 import CommunitySongs from '@/components/CommunitySongs';
-import { Compass } from 'lucide-react';
+import { Compass, Sparkles } from 'lucide-react';
 
 export default function ExploreContent({ songs }: { songs: ExampleSong[] }) {
   const { t } = useLanguage();
@@ -22,8 +23,14 @@ export default function ExploreContent({ songs }: { songs: ExampleSong[] }) {
       {songs.length > 0 ? (
         <CommunitySongs songs={songs} />
       ) : (
-        <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-10 text-center text-gray-500">
-          {t('Aucune création ne correspond à ta recherche pour le moment.', 'No creation matches your search yet.')}
+        <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-10 text-center">
+          <p className="text-gray-500 mb-4">
+            {t('Aucune chanson publique pour le moment — soyez parmi les premiers à partager la vôtre !',
+              'No public songs yet — be among the first to share yours!')}
+          </p>
+          <Link href="/create" className="inline-flex items-center gap-2 font-bold text-[13.5px] px-6 py-3 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500">
+            <Sparkles className="w-4 h-4" /> {t('Créer une chanson', 'Create a song')}
+          </Link>
         </div>
       )}
     </div>

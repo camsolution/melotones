@@ -1,15 +1,16 @@
 'use client';
 import { Generation } from '@/types';
-import { Download, Share2, MessageCircle, Copy, Check, RefreshCw } from 'lucide-react';
+import { Download, Share2, MessageCircle, Copy, Check, RefreshCw, Globe2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function SongDetail({ song: initialSong }: { song: Generation }) {
+export default function SongDetail({ song: initialSong, isOwner = false }: { song: Generation; isOwner?: boolean }) {
   const { t } = useLanguage();
   const [song, setSong] = useState<Generation>(initialSong);
   const [copied, setCopied] = useState(false);
   const [pollGaveUp, setPollGaveUp] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingPublic, setUpdatingPublic] = useState(false);
   const pollCount = useRef(0);
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `${t('Écoutez ma chanson générée par IA sur Melotones !', 'Listen to my AI-generated song on Melotones!')} ${song.occasion} · ${song.style}`;
@@ -28,7 +29,6 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
     if (song.status === 'completed' || song.status === 'failed') return;
     setPollGaveUp(false);
 
-    // 40 tentatives × 5s = ~3min20, un peu plus large pour les styles moins courants
     const interval = setInterval(async () => {
       pollCount.current += 1;
       if (pollCount.current > 40) {
@@ -49,6 +49,23 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
     setRefreshing(true);
     await fetchLatest();
     setRefreshing(false);
+  };
+
+  const togglePublic = async () => {
+    setUpdatingPublic(true);
+    try {
+      const res = await fetch(`/api/generations/${song.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_public: !song.is_public }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSong(updated);
+      }
+    } finally {
+      setUpdatingPublic(false);
+    }
   };
 
   return (
@@ -72,6 +89,25 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
               {copied ? t('Copié', 'Copied') : t('Copier le lien', 'Copy link')}
             </button>
           </div>
+
+          {isOwner && (
+            <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-center gap-3">
+              <Globe2 className="w-4 h-4 text-gray-400 flex-none" />
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-700">{t('Visible dans Explorer', 'Visible in Explore')}</p>
+                <p className="text-xs text-gray-400">{t('Le message personnel reste privé — seuls l\'ambiance et le style sont montrés.', 'Your personal message stays private — only the vibe and style are shown.')}</p>
+              </div>
+              <button
+                onClick={togglePublic}
+                disabled={updatingPublic}
+                role="switch"
+                aria-checked={song.is_public}
+                className={`relative w-11 h-6 rounded-full flex-none transition-colors ${song.is_public ? 'bg-brand-600' : 'bg-gray-300'} disabled:opacity-50`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${song.is_public ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+          )}
         </>
       ) : song.status === 'failed' ? (
         <p className="text-red-500">{t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>
