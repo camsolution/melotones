@@ -17,7 +17,7 @@ const ERROR_PATTERNS: { match: RegExp; fr: string; en: string }[] = [
     en: 'Our music generation service is temporarily unavailable.',
   },
   {
-    match: /quota|rate limit|too many requests/i,
+    match: /quota|rate limit|too many|slow down/i,
     fr: 'Notre fournisseur est momentanément surchargé — merci de réessayer dans quelques minutes.',
     en: 'Our provider is temporarily overloaded — please try again in a few minutes.',
   },
