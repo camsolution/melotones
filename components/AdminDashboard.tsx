@@ -23,8 +23,12 @@ type LiveStats = {
 };
 
 const LIVE_POLL_MS = 5000;
+const CHAT_POLL_MS = 4000;
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds'] as const;
+type ChatConversation = { id: string; user_id: string; user_email?: string; status: string; created_at: string; last_message_at: string };
+type ChatMessage = { id: string; sender: string; content: string; created_at: string };
+
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -37,6 +41,7 @@ const TAB_LABELS: Record<Tab, string> = {
   ads: 'Publicité',
   featured: 'Vedette',
   refunds: 'Remboursements',
+  messages: 'Messages',
 };
 
 export default function AdminDashboard() {
@@ -54,6 +59,11 @@ export default function AdminDashboard() {
   const [newFeaturedId, setNewFeaturedId] = useState('');
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [live, setLive] = useState<LiveStats | null>(null);
+  const [chatConversations, setChatConversations] = useState<ChatConversation[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatReply, setChatReply] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
@@ -99,6 +109,56 @@ export default function AdminDashboard() {
     const id = setInterval(poll, LIVE_POLL_MS);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
+
+  const loadChatConversations = useCallback(async () => {
+    const res = await fetch('/api/admin/chat');
+    if (res.ok) setChatConversations(await res.json());
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'messages') return;
+    let cancelled = false;
+    const poll = async () => {
+      const res = await fetch('/api/admin/chat');
+      if (!cancelled && res.ok) setChatConversations(await res.json());
+    };
+    poll();
+    const id = setInterval(poll, CHAT_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'messages' || !selectedChatId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const res = await fetch(`/api/admin/chat/${selectedChatId}`);
+      if (!cancelled && res.ok) setChatMessages(await res.json());
+    };
+    poll();
+    const id = setInterval(poll, CHAT_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [tab, selectedChatId]);
+
+  const handleSendChatReply = async () => {
+    if (!selectedChatId || !chatReply.trim()) return;
+    setSendingReply(true);
+    const res = await fetch(`/api/admin/chat/${selectedChatId}/reply`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: chatReply.trim() }),
+    });
+    setSendingReply(false);
+    if (res.ok) {
+      setChatReply('');
+      const [msgRes] = await Promise.all([fetch(`/api/admin/chat/${selectedChatId}`), loadChatConversations()]);
+      if (msgRes.ok) setChatMessages(await msgRes.json());
+    } else alert('Erreur envoi.');
+  };
+
+  const handleCloseChat = async (id: string, reopen: boolean) => {
+    const res = await fetch(`/api/admin/chat/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: reopen ? 'reopen' : 'close' }),
+    });
+    if (res.ok) loadChatConversations(); else alert('Erreur.');
+  };
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
     setBusyId(id);
@@ -313,6 +373,7 @@ export default function AdminDashboard() {
             {TAB_LABELS[t]}
             {t === 'requests' && pending.length > 0 ? ` (${pending.length})` : ''}
             {t === 'refunds' && pendingRefunds.length > 0 ? ` (${pendingRefunds.length})` : ''}
+            {t === 'messages' && chatConversations.filter(c => c.status === 'escalated').length > 0 ? ` (${chatConversations.filter(c => c.status === 'escalated').length})` : ''}
           </button>
         ))}
       </div>
@@ -613,6 +674,70 @@ export default function AdminDashboard() {
               </div>
             ))}
             {processedRefunds.length === 0 && <p className="text-gray-400 text-sm">Aucun historique.</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'messages' && (
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 h-[600px]">
+          <div className="border border-gray-200 rounded-xl overflow-y-auto bg-white">
+            {chatConversations.length === 0 && <p className="text-gray-400 text-sm p-4">Aucune conversation.</p>}
+            {chatConversations.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setSelectedChatId(c.id); setChatMessages([]); }}
+                className={`w-full text-left px-3 py-3 border-b border-gray-100 hover:bg-gray-50 ${selectedChatId === c.id ? 'bg-brand-50' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-800 truncate">{c.user_email || c.user_id}</p>
+                  {c.status === 'escalated' && <span className="w-2 h-2 rounded-full bg-red-500 flex-none" />}
+                </div>
+                <p className="text-xs text-gray-400">{new Date(c.last_message_at).toLocaleString('fr-FR')}</p>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full inline-block mt-1 ${
+                  c.status === 'escalated' ? 'bg-red-100 text-red-700' : c.status === 'closed' ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'
+                }`}>{c.status === 'escalated' ? 'À traiter' : c.status === 'closed' ? 'Fermée' : 'Bot actif'}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="border border-gray-200 rounded-xl bg-white flex flex-col">
+            {!selectedChatId ? (
+              <p className="text-gray-400 text-sm p-4 m-auto">Sélectionnez une conversation.</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-500">Conversation</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleCloseChat(selectedChatId, false)} className="text-xs text-gray-500 hover:text-gray-700">Fermer</button>
+                    <button onClick={() => handleCloseChat(selectedChatId, true)} className="text-xs text-brand-600 hover:text-brand-800">Rouvrir</button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {chatMessages.map(m => (
+                    <div key={m.id} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                        m.sender === 'admin' ? 'bg-brand-600 text-white' : m.sender === 'bot' ? 'bg-gray-100 text-gray-700' : 'bg-amber-50 text-gray-800 border border-amber-200'
+                      }`}>
+                        <p className="whitespace-pre-wrap">{m.content}</p>
+                        <p className={`text-[10px] mt-1 ${m.sender === 'admin' ? 'text-brand-100' : 'text-gray-400'}`}>
+                          {m.sender === 'user' ? 'Client' : m.sender === 'bot' ? 'Bot' : 'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 p-3 border-t border-gray-100">
+                  <input
+                    value={chatReply}
+                    onChange={e => setChatReply(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSendChatReply(); }}
+                    placeholder="Répondre au client…"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button disabled={sendingReply || !chatReply.trim()} onClick={handleSendChatReply} className="btn-primary text-sm">Envoyer</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import PresenceHeartbeat from '@/components/PresenceHeartbeat';
+import ChatWidget from '@/components/ChatWidget';
 
 const APP_SHELL_PREFIXES = [
   '/dashboard', '/create', '/explore', '/history', '/shorts', '/statistiques', '/notes', '/profil', '/songs',
@@ -24,6 +25,7 @@ export default function AppShell({ session, children }: { session: Session | nul
         <Sidebar session={session} />
         <LanguageSwitcher className="hidden md:flex fixed top-5 right-6 z-40" />
         <main className="flex-1 min-w-0">{children}</main>
+        <ChatWidget />
       </div>
     );
   }
