@@ -59,13 +59,11 @@ export default function Navbar({ session: initialSession }: { session: Session |
               <Link href="/" className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Accueil', 'Home')}</Link>
               {session ? (
                 <>
-                  <Link href="/create" className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Créer', 'Create')}</Link>
-                  <Link href="/history" className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Mes sons', 'My Songs')}</Link>
-                  <Link href="/dashboard" className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Dashboard', 'Dashboard')}</Link>
                   {isAdmin && (
                     <Link href="/admin" className="text-brand-700 hover:text-brand-800 transition-colors font-semibold">Admin</Link>
                   )}
-                  <button onClick={handleLogout} className="btn-secondary text-sm">{t('Déconnexion', 'Logout')}</button>
+                  <button onClick={handleLogout} className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Déconnexion', 'Logout')}</button>
+                  <Link href="/dashboard" className="btn-primary text-sm">{t('Mon espace', 'My space')}</Link>
                 </>
               ) : (
                 <>
@@ -103,13 +101,11 @@ export default function Navbar({ session: initialSession }: { session: Session |
               <Link href="/" onClick={closeMobile} className="block text-gray-700 font-medium">{t('Accueil', 'Home')}</Link>
               {session ? (
                 <>
-                  <Link href="/create" onClick={closeMobile} className="block text-gray-700 font-medium">{t('Créer', 'Create')}</Link>
-                  <Link href="/history" onClick={closeMobile} className="block text-gray-700 font-medium">{t('Mes sons', 'My Songs')}</Link>
-                  <Link href="/dashboard" onClick={closeMobile} className="block text-gray-700 font-medium">{t('Dashboard', 'Dashboard')}</Link>
                   {isAdmin && (
                     <Link href="/admin" onClick={closeMobile} className="block text-brand-700 font-semibold">Admin</Link>
                   )}
                   <button onClick={handleLogout} className="w-full btn-secondary">{t('Déconnexion', 'Logout')}</button>
+                  <Link href="/dashboard" onClick={closeMobile} className="block w-full btn-primary text-center">{t('Mon espace', 'My space')}</Link>
                 </>
               ) : (
                 <>

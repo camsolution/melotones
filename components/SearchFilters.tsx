@@ -1,5 +1,5 @@
 'use client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,6 +10,7 @@ const styles = Object.keys(styleTranslations);
 
 export default function SearchFilters() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [occasion, setOccasion] = useState(searchParams.get('occasion') || '');
   const [style, setStyle] = useState(searchParams.get('style') || '');
@@ -21,7 +22,7 @@ export default function SearchFilters() {
     if (occasion) params.set('occasion', occasion);
     if (style) params.set('style', style);
     if (q) params.set('q', q);
-    router.push(`/?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;

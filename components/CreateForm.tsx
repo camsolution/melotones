@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Sparkles, AlertTriangle, Mic, MicOff, Wand2, ChevronLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { occasionTranslations, styleTranslations } from '@/lib/listTranslations';
@@ -29,12 +29,18 @@ export default function CreateForm() {
   const [lyricLoading, setLyricLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const step = STEPS[stepIndex];
 
   useEffect(() => {
     fetch('/api/me').then(r => r.json()).then(d => setBalance(d.balance ?? null)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const preselected = searchParams.get('style');
+    if (preselected && styles.includes(preselected)) setStyle(preselected);
   }, []);
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;
