@@ -1,7 +1,8 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
-import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+export const dynamic = 'force-dynamic';
 
 const COOLDOWN_MS = 5000;
 
@@ -13,15 +14,28 @@ export async function POST(request: Request) {
   // Verrou en base plutôt qu'en mémoire : sur Vercel, deux requêtes
   // consécutives peuvent atterrir sur des instances serverless différentes
   // sans état partagé — un Map en mémoire ne bloque donc rien de fiable.
-  const { data: logRow } = await supabaseAdmin
-    .from('lyrics_generation_log')
-    .select('last_called_at')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (logRow && Date.now() - new Date(logRow.last_called_at).getTime() < COOLDOWN_MS) {
+  // fetch brut avec cache désactivé (plutôt que le client supabase-js) : même
+  // contournement que /api/ads et /api/featured-song, nécessaire pour une
+  // table récente — supabase-js peut sinon renvoyer des lectures obsolètes.
+  const restHeaders = {
+    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const logRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log?select=last_called_at&user_id=eq.${user.id}`,
+    { headers: restHeaders, cache: 'no-store' }
+  );
+  const logRows = logRes.ok ? await logRes.json() : [];
+  if (logRows[0] && Date.now() - new Date(logRows[0].last_called_at).getTime() < COOLDOWN_MS) {
     return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération de paroles.' }, { status: 429 });
   }
-  await supabaseAdmin.from('lyrics_generation_log').upsert({ user_id: user.id, last_called_at: new Date().toISOString() });
+  await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log`, {
+    method: 'POST',
+    headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ user_id: user.id, last_called_at: new Date().toISOString() }),
+    cache: 'no-store',
+  });
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
