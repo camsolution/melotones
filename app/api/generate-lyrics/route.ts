@@ -13,10 +13,8 @@ export async function POST(request: Request) {
 
   // Verrou en base plutôt qu'en mémoire : sur Vercel, deux requêtes
   // consécutives peuvent atterrir sur des instances serverless différentes
-  // sans état partagé — un Map en mémoire ne bloque donc rien de fiable.
-  // fetch brut avec cache désactivé (plutôt que le client supabase-js) : même
-  // contournement que /api/ads et /api/featured-song, nécessaire pour une
-  // table récente — supabase-js peut sinon renvoyer des lectures obsolètes.
+  // sans état partagé. fetch brut avec cache désactivé plutôt que le client
+  // supabase-js, par cohérence avec /api/ads et /api/featured-song.
   const restHeaders = {
     apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
     Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
@@ -27,18 +25,15 @@ export async function POST(request: Request) {
     { headers: restHeaders, cache: 'no-store' }
   );
   const logRows = logRes.ok ? await logRes.json() : [];
-  const debug: any = { logResStatus: logRes.status, logRows, now: Date.now() };
   if (logRows[0] && Date.now() - new Date(logRows[0].last_called_at).getTime() < COOLDOWN_MS) {
-    return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération de paroles.', _debug: debug }, { status: 429 });
+    return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération de paroles.' }, { status: 429 });
   }
-  const writeRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log`, {
+  await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log`, {
     method: 'POST',
     headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({ user_id: user.id, last_called_at: new Date().toISOString() }),
     cache: 'no-store',
   });
-  debug.writeResStatus = writeRes.status;
-  debug.writeResBody = await writeRes.text();
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -61,8 +56,8 @@ export async function POST(request: Request) {
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-    return NextResponse.json({ text, _debug: debug });
+    return NextResponse.json({ text });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Erreur génération', _debug: debug }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Erreur génération' }, { status: 500 });
   }
 }
