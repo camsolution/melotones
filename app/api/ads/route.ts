@@ -10,7 +10,12 @@ export async function GET() {
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
-  console.log('DEBUG /api/ads', { data, error, url: process.env.NEXT_PUBLIC_SUPABASE_URL });
+  console.log('DEBUG /api/ads', {
+    data, error,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 24),
+    keyLen: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+  });
   if (error) return NextResponse.json([]);
   return NextResponse.json(data || []);
 }
