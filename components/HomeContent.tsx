@@ -29,8 +29,8 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
   return (
     <div>
       <section className="text-center py-16 md:py-24 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-pink-50 opacity-50 -z-10" />
-        <h1 className="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-brand-600 to-pink-500 text-transparent bg-clip-text mb-6 leading-tight">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-amber-50 opacity-70 -z-10" />
+        <h1 className="font-display text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-brand-600 via-magenta-500 to-amber-500 text-transparent bg-clip-text mb-6 leading-tight text-balance">
           {t('Vos mots, notre IA, une chanson inoubliable', 'Your words, our AI, an unforgettable song')}
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
@@ -51,13 +51,13 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
         </div>
       </section>
       <section id="examples" className="py-12">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800">{t('Parcourez nos créations', 'Browse our creations')}</h2>
+        <h2 className="font-display text-3xl font-bold mb-6 text-gray-800">{t('Parcourez nos créations', 'Browse our creations')}</h2>
         <SearchFilters />
         {exampleSongs.length > 0 && <CommunitySongs songs={exampleSongs} />}
       </section>
       <Testimonials />
-      <section className="py-16 text-center bg-gradient-to-r from-brand-600 to-pink-500 rounded-2xl my-12 px-6">
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t('Prêt à créer votre chanson personnalisée ?', 'Ready to create your personalized song?')}</h2>
+      <section className="py-16 text-center bg-gradient-to-r from-brand-600 via-magenta-500 to-amber-500 rounded-[28px] my-12 px-6">
+        <h2 className="font-display text-3xl md:text-4xl font-bold text-white mb-4">{t('Prêt à créer votre chanson personnalisée ?', 'Ready to create your personalized song?')}</h2>
         <p className="text-white/80 mb-8 max-w-xl mx-auto">
           {t('Rejoignez plus de', 'Join over')}{' '}
           <strong className="text-white"><UserCounter animate={false} /></strong>{' '}
