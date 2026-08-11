@@ -21,6 +21,8 @@ export default function FeaturedSong() {
   const [muted, setMuted] = useState(true);
   const [ready, setReady] = useState(false);
 
+  const [showHint, setShowHint] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gainRef = useRef<GainNode | null>(null);
@@ -97,14 +99,22 @@ export default function FeaturedSong() {
     audio.muted = true;
     audio.play().catch(() => {});
 
+    // Le son audible ne peut jamais démarrer tout seul (règle imposée par tous les
+    // navigateurs) — on attire l'œil sur le bouton pendant quelques secondes pour
+    // que l'activation au clic soit aussi immédiate que possible pour l'utilisateur.
+    setShowHint(true);
+    const hintTimer = setTimeout(() => setShowHint(false), 6000);
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ctx?.close().catch(() => {});
       audioCtxRef.current = null;
+      clearTimeout(hintTimer);
     };
   }, [song, ready, draw]);
 
   const toggleMute = () => {
+    setShowHint(false);
     const next = !muted;
     setMuted(next);
     if (audioRef.current) audioRef.current.muted = next;
@@ -153,14 +163,24 @@ export default function FeaturedSong() {
 
       <canvas ref={canvasRef} width={320} height={44} className="flex-1 min-w-0 h-11" aria-hidden />
 
-      <button
-        onClick={toggleMute}
-        className="flex-none w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors"
-        title={muted ? t('Activer le son', 'Unmute') : t('Couper le son', 'Mute')}
-        aria-label={muted ? t('Activer le son', 'Unmute') : t('Couper le son', 'Mute')}
-      >
-        {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-      </button>
+      <div className="relative flex-none">
+        {showHint && muted && (
+          <span className="absolute -top-9 right-0 whitespace-nowrap bg-white text-stage text-[11px] font-semibold px-2.5 py-1 rounded-lg shadow-lg animate-bounce">
+            {t('🔊 Activer le son', '🔊 Unmute')}
+          </span>
+        )}
+        {showHint && muted && (
+          <span className="absolute inset-0 rounded-full bg-magenta-500/60 animate-ping" aria-hidden />
+        )}
+        <button
+          onClick={toggleMute}
+          className="relative w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors"
+          title={muted ? t('Activer le son', 'Unmute') : t('Couper le son', 'Mute')}
+          aria-label={muted ? t('Activer le son', 'Unmute') : t('Couper le son', 'Mute')}
+        >
+          {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        </button>
+      </div>
     </section>
   );
 }
