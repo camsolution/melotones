@@ -273,7 +273,9 @@ export default function CreateForm() {
 
           <div className="flex gap-3">
             <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            {balance !== null && balance < 1 ? (
+            {balance === null ? (
+              <button disabled className="btn-secondary flex-1 opacity-60">{t('Vérification du solde…', 'Checking balance…')}</button>
+            ) : balance < 1 ? (
               <a href="/notes" className="btn-primary flex-1 text-center">{t('Acheter des Notes', 'Buy Notes')}</a>
             ) : (
               <button onClick={handleSubmit} disabled={status === 'generating'} className="btn-primary flex-1 flex items-center justify-center gap-2">
