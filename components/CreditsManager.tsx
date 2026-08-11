@@ -5,6 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { CheckCircle2, Tag } from 'lucide-react';
 
 const PAYMENT_METHODS = [
+  { key: 'paydunya', label: { fr: 'Mobile Money / Carte (PayDunya)', en: 'Mobile Money / Card (PayDunya)' } },
   { key: 'wave', label: 'Wave' },
   { key: 'orange_money', label: 'Orange Money' },
   { key: 'card', label: { fr: 'Carte bancaire', en: 'Card' } },
@@ -15,7 +16,7 @@ export default function CreditsManager() {
   const { t } = useLanguage();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<string>('wave');
+  const [paymentMethod, setPaymentMethod] = useState<string>('paydunya');
   const [paymentReference, setPaymentReference] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,11 @@ export default function CreditsManager() {
       if (!res.ok) {
         setErrorMsg(data.error || t('Erreur lors de la demande.', 'Request error.'));
         setLoading(false);
+        return;
+      }
+
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
         return;
       }
 
@@ -125,17 +131,19 @@ export default function CreditsManager() {
             </div>
           </div>
 
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Référence de paiement (optionnel)', 'Payment reference (optional)')}</p>
-            <input
-              type="text"
-              value={paymentReference}
-              onChange={e => setPaymentReference(e.target.value)}
-              maxLength={100}
-              placeholder={t('Ex : ID de transaction Wave', 'E.g. Wave transaction ID')}
-              className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[13.5px]"
-            />
-          </div>
+          {paymentMethod !== 'paydunya' && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Référence de paiement (optionnel)', 'Payment reference (optional)')}</p>
+              <input
+                type="text"
+                value={paymentReference}
+                onChange={e => setPaymentReference(e.target.value)}
+                maxLength={100}
+                placeholder={t('Ex : ID de transaction Wave', 'E.g. Wave transaction ID')}
+                className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[13.5px]"
+              />
+            </div>
+          )}
 
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -152,11 +160,13 @@ export default function CreditsManager() {
           </div>
 
           <p className="text-xs text-gray-500">
-            {t('Paiement manuel via Wave, Orange Money ou carte — ta demande est validée par notre équipe.', 'Manual payment via Wave, Orange Money or card — your request is reviewed by our team.')}
+            {paymentMethod === 'paydunya'
+              ? t('Paiement instantané et sécurisé — tu seras redirigé vers PayDunya pour payer par Mobile Money ou carte bancaire.', 'Instant, secure payment — you\'ll be redirected to PayDunya to pay via Mobile Money or card.')
+              : t('Paiement manuel via Wave, Orange Money ou carte — ta demande est validée par notre équipe.', 'Manual payment via Wave, Orange Money or card — your request is reviewed by our team.')}
           </p>
           {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full">
-            {loading ? t('Envoi…', 'Sending…') : t('Envoyer ma demande', 'Send my request')}
+            {loading ? t('Envoi…', 'Sending…') : paymentMethod === 'paydunya' ? t('Payer maintenant', 'Pay now') : t('Envoyer ma demande', 'Send my request')}
           </button>
         </div>
       )}

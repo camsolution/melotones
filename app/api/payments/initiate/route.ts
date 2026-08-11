@@ -1,8 +1,9 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
+import { initiatePayDunyaPayment, isPayDunyaConfigured } from '@/lib/payments/paydunya';
 
-const PAYMENT_METHODS = ['wave', 'orange_money', 'card', 'other'];
+const PAYMENT_METHODS = ['wave', 'orange_money', 'card', 'other', 'paydunya'];
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
     couponId = coupon.id;
   }
 
+  if (payment_method === 'paydunya' && !isPayDunyaConfigured()) {
+    return NextResponse.json({ error: "Le paiement automatique PayDunya n'est pas encore configuré — merci de choisir un autre moyen de paiement." }, { status: 503 });
+  }
+
   const { data: reqRow, error: insertError } = await supabaseAdmin
     .from('purchase_requests')
     .insert({
@@ -64,12 +69,39 @@ export async function POST(request: Request) {
       payment_reference: payment_reference || null,
       coupon_id: couponId,
       status: 'pending',
+      provider: payment_method === 'paydunya' ? 'paydunya' : null,
     })
     .select()
     .single();
 
   if (insertError || !reqRow) {
     return NextResponse.json({ error: insertError?.message || 'Échec de la demande' }, { status: 500 });
+  }
+
+  if (payment_method === 'paydunya') {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+    const result = await initiatePayDunyaPayment({
+      amountFcfa: finalPrice,
+      description: `${pack.credits} Notes Melotones — ${pack.label}`,
+      callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
+      returnUrl: `${siteUrl}/notes?status=success`,
+      cancelUrl: `${siteUrl}/notes?status=cancelled`,
+      customData: { purchase_request_id: reqRow.id },
+    });
+
+    if (!result.ok) {
+      // Rien n'a été débité, la tentative d'initialisation a simplement échoué
+      // côté fournisseur — pas la peine de garder une demande fantôme.
+      await supabaseAdmin.from('purchase_requests').delete().eq('id', reqRow.id);
+      return NextResponse.json({ error: result.error }, { status: 502 });
+    }
+
+    await supabaseAdmin
+      .from('purchase_requests')
+      .update({ provider_token: result.token, provider_status: 'initiated' })
+      .eq('id', reqRow.id);
+
+    return NextResponse.json({ redirect_url: result.paymentUrl });
   }
 
   return NextResponse.json({
