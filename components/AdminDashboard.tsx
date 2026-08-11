@@ -27,8 +27,12 @@ const CHAT_POLL_MS = 4000;
 
 type ChatConversation = { id: string; user_id: string; user_email?: string; status: string; created_at: string; last_message_at: string };
 type ChatMessage = { id: string; sender: string; content: string; created_at: string };
+type EmailCampaign = {
+  id: string; subject: string; body_html: string; status: string; audience: string;
+  recipient_count: number | null; sent_count: number; created_at: string; sent_at: string | null;
+};
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages'] as const;
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -42,7 +46,10 @@ const TAB_LABELS: Record<Tab, string> = {
   featured: 'Vedette',
   refunds: 'Remboursements',
   messages: 'Messages',
+  emailing: 'Emailing',
 };
+
+const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
@@ -64,6 +71,9 @@ export default function AdminDashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatReply, setChatReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
+  const [newCampaign, setNewCampaign] = useState({ subject: '', body_html: '', audience: 'all' });
+  const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
@@ -72,7 +82,7 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
@@ -83,6 +93,7 @@ export default function AdminDashboard() {
       fetch('/api/admin/featured-songs'),
       fetch('/api/admin/generations?status=completed'),
       fetch('/api/admin/refund-requests'),
+      fetch('/api/admin/campaigns'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
@@ -94,6 +105,7 @@ export default function AdminDashboard() {
     if (featuredRes.ok) setFeatured(await featuredRes.json());
     if (allGenRes.ok) setAllCompletedGens(await allGenRes.json());
     if (refundsRes.ok) setRefunds(await refundsRes.json());
+    if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -158,6 +170,35 @@ export default function AdminDashboard() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: reopen ? 'reopen' : 'close' }),
     });
     if (res.ok) loadChatConversations(); else alert('Erreur.');
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!newCampaign.subject.trim() || !newCampaign.body_html.trim()) return;
+    setBusyId('new-campaign');
+    const res = await fetch('/api/admin/campaigns', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCampaign),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewCampaign({ subject: '', body_html: '', audience: 'all' }); loadAll(); }
+    else { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur création campagne.'); }
+  };
+
+  const handleDeleteCampaign = async (id: string) => {
+    if (!confirm('Supprimer ce brouillon de campagne ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/campaigns/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleSendCampaign = async (c: EmailCampaign) => {
+    if (!confirm(`Envoyer "${c.subject}" à l'audience "${AUDIENCE_LABELS[c.audience]}" ? Cette action est irréversible.`)) return;
+    setSendingCampaignId(c.id);
+    const res = await fetch(`/api/admin/campaigns/${c.id}/send`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setSendingCampaignId(null);
+    if (res.ok) { alert(`Envoyée à ${data.sentCount}/${data.recipientCount} destinataires.`); loadAll(); }
+    else alert(data.error || 'Erreur envoi.');
   };
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
@@ -738,6 +779,64 @@ export default function AdminDashboard() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'emailing' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h2 className="text-lg font-bold mb-1 text-gray-800">Nouvelle campagne</h2>
+            <p className="text-xs text-gray-500 mb-4">Le contenu accepte du HTML. Un lien de désinscription est ajouté automatiquement à la fin.</p>
+            <div className="space-y-3">
+              <input
+                placeholder="Objet de l'email"
+                value={newCampaign.subject}
+                onChange={e => setNewCampaign(c => ({ ...c, subject: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              />
+              <textarea
+                placeholder="Contenu (HTML autorisé)…"
+                value={newCampaign.body_html}
+                onChange={e => setNewCampaign(c => ({ ...c, body_html: e.target.value }))}
+                rows={6}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
+              />
+              <div className="flex flex-wrap gap-3 items-center">
+                <select value={newCampaign.audience} onChange={e => setNewCampaign(c => ({ ...c, audience: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm">
+                  {Object.entries(AUDIENCE_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </select>
+                <button disabled={busyId === 'new-campaign'} onClick={handleCreateCampaign} className="btn-primary text-sm">Enregistrer le brouillon</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {campaigns.map(c => (
+              <div key={c.id} className="card">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800">{c.subject}</p>
+                    <p className="text-xs text-gray-500">{AUDIENCE_LABELS[c.audience]} · {new Date(c.created_at).toLocaleString('fr-FR')}</p>
+                    {c.status === 'sent' && <p className="text-xs text-green-600 mt-1">Envoyée à {c.sent_count}/{c.recipient_count} destinataires le {c.sent_at && new Date(c.sent_at).toLocaleString('fr-FR')}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-none">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      c.status === 'sent' ? 'bg-green-100 text-green-700' : c.status === 'sending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{c.status === 'sent' ? 'Envoyée' : c.status === 'sending' ? 'Envoi en cours' : 'Brouillon'}</span>
+                    {c.status === 'draft' && (
+                      <>
+                        <button disabled={sendingCampaignId === c.id} onClick={() => handleSendCampaign(c)} className="btn-primary text-xs">
+                          {sendingCampaignId === c.id ? 'Envoi…' : 'Envoyer'}
+                        </button>
+                        <button disabled={busyId === c.id} onClick={() => handleDeleteCampaign(c.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {campaigns.length === 0 && <p className="text-gray-500">Aucune campagne pour le moment.</p>}
           </div>
         </div>
       )}
