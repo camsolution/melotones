@@ -17,6 +17,12 @@ type RefundRequest = {
   id: string; generation_id: string; user_id: string; user_email?: string; credits: number; reason: string | null;
   status: string; created_at: string; generation: { occasion: string; style: string; status: string } | null;
 };
+type LiveStats = {
+  onlineCount: number; processingGenerations: number; pendingPurchaseRequests: number;
+  pendingRefundRequests: number; openChatConversations: number; revenueTodayFcfa: number; newSignupsToday: number;
+};
+
+const LIVE_POLL_MS = 5000;
 
 const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds'] as const;
 type Tab = typeof TABS[number];
@@ -47,6 +53,7 @@ export default function AdminDashboard() {
   const [allCompletedGens, setAllCompletedGens] = useState<AdminGeneration[]>([]);
   const [newFeaturedId, setNewFeaturedId] = useState('');
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [live, setLive] = useState<LiveStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
@@ -81,6 +88,17 @@ export default function AdminDashboard() {
   }, [genFilter]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      const res = await fetch('/api/admin/live-stats');
+      if (!cancelled && res.ok) setLive(await res.json());
+    };
+    poll();
+    const id = setInterval(poll, LIVE_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
     setBusyId(id);
@@ -250,6 +268,40 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard Admin — Melotones</h1>
+
+      {live && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          <div className="card !p-3 text-center relative overflow-hidden">
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <p className="text-2xl font-bold text-green-600">{live.onlineCount}</p>
+            <p className="text-[11px] text-gray-500">En ligne</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-orange-500">{live.processingGenerations}</p>
+            <p className="text-[11px] text-gray-500">Génération en cours</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-brand-600">{live.pendingPurchaseRequests}</p>
+            <p className="text-[11px] text-gray-500">Achats en attente</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-brand-600">{live.pendingRefundRequests}</p>
+            <p className="text-[11px] text-gray-500">Remb. en attente</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-pink-600">{live.openChatConversations}</p>
+            <p className="text-[11px] text-gray-500">Chats à traiter</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-green-600">{live.revenueTodayFcfa.toLocaleString('fr-FR')}</p>
+            <p className="text-[11px] text-gray-500">Revenus aujourd'hui</p>
+          </div>
+          <div className="card !p-3 text-center">
+            <p className="text-2xl font-bold text-gray-700">{live.newSignupsToday}</p>
+            <p className="text-[11px] text-gray-500">Inscrits aujourd'hui</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200 pb-2">
         {TABS.map(t => (
