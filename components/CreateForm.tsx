@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Sparkles, AlertTriangle, Mic, MicOff, Wand2, ChevronLeft } from 'lucide-react';
+import { Sparkles, AlertTriangle, Mic, MicOff, Wand2, ChevronLeft, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { occasionTranslations, styleTranslations } from '@/lib/listTranslations';
 import { styleMeta } from '@/lib/styleMeta';
@@ -21,6 +21,13 @@ const styles = Object.keys(styleTranslations);
 type Gender = 'male' | 'female' | 'duet';
 const STEPS = ['occasion', 'style', 'voice', 'message', 'review'] as const;
 type Step = typeof STEPS[number];
+const STEP_LABELS: Record<Step, { fr: string; en: string }> = {
+  occasion: { fr: 'Occasion', en: 'Occasion' },
+  style: { fr: 'Style', en: 'Style' },
+  voice: { fr: 'Voix', en: 'Voice' },
+  message: { fr: 'Message', en: 'Message' },
+  review: { fr: 'Récap', en: 'Review' },
+};
 
 export default function CreateForm() {
   const { lang, t } = useLanguage();
@@ -130,196 +137,210 @@ export default function CreateForm() {
   };
 
   return (
-    <div className="card max-w-2xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        {STEPS.map((s, i) => (
-          <div key={s} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= stepIndex ? 'bg-brand-600' : 'bg-gray-200'}`} />
-        ))}
-      </div>
-
-      {process.env.NEXT_PUBLIC_MOCK_AI === 'true' && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl mb-6">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <span><strong>{t('Mode démo :', 'Demo mode:')}</strong> {t('génération simulée.', 'simulated generation.')}</span>
+    <div className="max-w-2xl mx-auto px-5 md:px-10 py-8 md:py-10">
+      <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-7 md:p-9">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold text-brand-600 uppercase tracking-wide">
+            {t('Étape', 'Step')} {stepIndex + 1}/{STEPS.length} · {t(STEP_LABELS[step].fr, STEP_LABELS[step].en)}
+          </span>
         </div>
-      )}
-
-      {step === 'occasion' && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Pour quelle occasion ?', 'For what occasion?')}</h2>
-          <p className="text-gray-500 mb-6">{t('Choisis le moment que tu veux célébrer', 'Choose the moment you want to celebrate')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-            {occasions.map(o => (
-              <button key={o} onClick={() => setOccasion(o)} className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${occasion === o ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-brand-200'}`}>
-                <span className="text-3xl">{occasionMeta[o]}</span>
-                <span className="text-sm font-medium text-gray-700">{getOccasionLabel(o)}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={goNext} disabled={!occasion} className="btn-primary w-full">{t('Continuer', 'Continue')}</button>
-        </div>
-      )}
-
-      {step === 'style' && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Quel style de musique ?', 'What music style?')}</h2>
-          <p className="text-gray-500 mb-6">{t('Choisis l\'ambiance de ta chanson', 'Choose your song\'s vibe')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            {styles.map(s => {
-              const meta = styleMeta[s] || { emoji: '🎵', gradient: 'from-brand-500 to-pink-500' };
-              return (
-                <button key={s} onClick={() => { setStyle(s); setShowCustomStyle(false); }} className={`relative overflow-hidden flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s && !showCustomStyle ? 'border-brand-600' : 'border-gray-200 hover:border-brand-200'}`}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${meta.gradient} opacity-10`} />
-                  <span className="text-3xl relative">{meta.emoji}</span>
-                  <span className="text-sm font-medium text-gray-700 relative">{getStyleLabel(s)}</span>
-                </button>
-              );
-            })}
-            <button
-              onClick={() => { setShowCustomStyle(true); setStyle(prev => (styles.includes(prev || '') ? '' : prev)); }}
-              className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 border-dashed transition-all ${showCustomStyle ? 'border-brand-600 bg-brand-50' : 'border-gray-300 hover:border-brand-200'}`}
-            >
-              <span className="text-3xl">✏️</span>
-              <span className="text-sm font-medium text-gray-700">{t('Autre style', 'Other style')}</span>
-            </button>
-          </div>
-
-          {showCustomStyle && (
-            <div className="mb-6">
-              <input
-                type="text"
-                value={style ?? ''}
-                onChange={e => setStyle(e.target.value)}
-                maxLength={60}
-                autoFocus
-                placeholder={t('Décris ton style (ex : Jazz manouche, Reggaeton lent...)', 'Describe your style (e.g. Slow reggaeton, Gypsy jazz...)')}
-                className="w-full py-3 px-4 bg-white border-2 border-brand-300 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none"
-              />
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            <button onClick={goNext} disabled={!style} className="btn-primary flex-1">{t('Continuer', 'Continue')}</button>
-          </div>
-        </div>
-      )}
-
-      {step === 'voice' && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Quel type de voix ?', 'What voice type?')}</h2>
-          <p className="text-gray-500 mb-6">{t('Homme, femme ou duo ?', 'Male, female or duet?')}</p>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {[
-              { key: 'male' as Gender, emoji: '👨', label: t('Homme', 'Male') },
-              { key: 'female' as Gender, emoji: '👩', label: t('Femme', 'Female') },
-              { key: 'duet' as Gender, emoji: '👫', label: t('Duo', 'Duet') },
-            ].map(g => (
-              <button key={g.key} onClick={() => setGender(g.key)} className={`flex flex-col items-center gap-2 py-6 rounded-2xl border-2 transition-all ${gender === g.key ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-brand-200'}`}>
-                <span className="text-3xl">{g.emoji}</span>
-                <span className="text-sm font-medium text-gray-700">{g.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            <button onClick={goNext} disabled={!gender} className="btn-primary flex-1">{t('Continuer', 'Continue')}</button>
-          </div>
-        </div>
-      )}
-
-      {step === 'message' && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Décris ce que tu veux dans ta chanson', 'Describe what you want in your song')}</h2>
-          <div className="relative mb-2">
-            <textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              maxLength={400}
-              className="w-full py-3 px-4 pr-12 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none min-h-[140px]"
-              placeholder={t('Ex : Joyeux anniversaire à mon ami Dioula...', 'E.g. Happy birthday to my friend...')}
+        <div className="flex items-center gap-1.5 mb-7">
+          {STEPS.map((s, i) => (
+            <div
+              key={s}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                i <= stepIndex ? 'bg-gradient-to-r from-brand-600 to-magenta-500' : 'bg-gray-100'
+              }`}
             />
-            <button type="button" onClick={toggleMic} className={`absolute top-3 right-3 p-2 rounded-full ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`} title={t('Dicter au micro', 'Dictate')}>
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          ))}
+        </div>
+
+        {process.env.NEXT_PUBLIC_MOCK_AI === 'true' && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl mb-6 text-sm">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <span><strong>{t('Mode démo :', 'Demo mode:')}</strong> {t('génération simulée.', 'simulated generation.')}</span>
+          </div>
+        )}
+
+        {step === 'occasion' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Pour quelle occasion ?', 'For what occasion?')}</h2>
+            <p className="text-gray-500 text-[15px] mb-6">{t('Choisis le moment que tu veux célébrer', 'Choose the moment you want to celebrate')}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              {occasions.map(o => (
+                <button key={o} onClick={() => setOccasion(o)} className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${occasion === o ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50' : 'border-gray-200 hover:border-brand-200'}`}>
+                  <span className="text-3xl">{occasionMeta[o]}</span>
+                  <span className="text-sm font-semibold text-gray-700">{getOccasionLabel(o)}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={goNext} disabled={!occasion} className="w-full font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
+              {t('Continuer', 'Continue')}
             </button>
           </div>
-          <button type="button" onClick={handleGenerateLyrics} disabled={lyricLoading} className="flex items-center gap-2 text-sm text-brand-700 font-medium mb-4 hover:text-brand-800">
-            <Wand2 className="w-4 h-4" /> {lyricLoading ? t('Génération...', 'Generating...') : t('Générer des paroles avec l\'IA', 'Generate lyrics with AI')}
-          </button>
-          <p className="text-xs text-gray-400 mb-6">
-            {t('Minimum 10 caractères', 'Minimum 10 characters')} ({message.length}/10) · 💡 {t('Plus tu donnes de détails, plus ta chanson sera personnalisée !', 'The more detail you give, the more personalized your song will be!')}
-          </p>
-          <div className="flex gap-3">
-            <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            <button onClick={goNext} disabled={message.length < 10} className="btn-primary flex-1">{t('Continuer', 'Continue')}</button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {step === 'review' && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
-          <p className="text-gray-500 mb-6">
-            {balance !== null && balance < 1
-              ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
-              : t('Prêt à créer ta chanson', 'Ready to create your song')}
-          </p>
-          <div className="grid grid-cols-3 gap-3 mb-6 text-center">
-            <div className="p-4 rounded-xl bg-gray-50">
-              <p className="text-2xl mb-1">{occasion ? occasionMeta[occasion] : '🎉'}</p>
-              <p className="text-xs font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>
+        {step === 'style' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Quel style de musique ?', 'What music style?')}</h2>
+            <p className="text-gray-500 text-[15px] mb-6">{t('Choisis l\'ambiance de ta chanson', 'Choose your song\'s vibe')}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {styles.map(s => {
+                const meta = styleMeta[s] || { emoji: '🎵', gradient: 'from-brand-500 to-magenta-500' };
+                return (
+                  <button key={s} onClick={() => { setStyle(s); setShowCustomStyle(false); }} className={`relative overflow-hidden flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${style === s && !showCustomStyle ? 'border-brand-600' : 'border-gray-200 hover:border-brand-200'}`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${meta.gradient} opacity-10`} />
+                    <span className="text-3xl relative">{meta.emoji}</span>
+                    <span className="text-sm font-semibold text-gray-700 relative">{getStyleLabel(s)}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => { setShowCustomStyle(true); setStyle(prev => (styles.includes(prev || '') ? '' : prev)); }}
+                className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 border-dashed transition-all ${showCustomStyle ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50' : 'border-gray-300 hover:border-brand-200'}`}
+              >
+                <span className="text-3xl">✏️</span>
+                <span className="text-sm font-semibold text-gray-700">{t('Autre style', 'Other style')}</span>
+              </button>
             </div>
-            <div className="p-4 rounded-xl bg-gray-50">
-              <p className="text-2xl mb-1">{style ? styleMeta[style]?.emoji ?? '🎵' : '🎵'}</p>
-              <p className="text-xs font-semibold text-gray-700 capitalize">{style ? getStyleLabel(style) : ''}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-gray-50">
-              <p className="text-2xl mb-1">{gender ? genderMeta[gender].emoji : '🎤'}</p>
-              <p className="text-xs font-semibold text-gray-700">{gender ? t(genderMeta[gender].fr, genderMeta[gender].en) : ''}</p>
+
+            {showCustomStyle && (
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={style ?? ''}
+                  onChange={e => setStyle(e.target.value)}
+                  maxLength={60}
+                  autoFocus
+                  placeholder={t('Décris ton style (ex : Jazz manouche, Reggaeton lent...)', 'Describe your style (e.g. Slow reggaeton, Gypsy jazz...)')}
+                  className="w-full py-3 px-4 bg-white border-2 border-brand-300 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={goNext} disabled={!style} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
+                {t('Continuer', 'Continue')}
+              </button>
             </div>
           </div>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        )}
 
-          {balance !== null && balance < 1 && (
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2">{t('Nos offres de Notes', 'Our Notes packs')}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {packs.map(pack => (
-                  <a key={pack.id} href="/notes" className="rounded-xl border-2 border-gray-200 hover:border-brand-300 p-3 text-center transition-colors">
-                    <p className="text-lg font-bold text-brand-600">{pack.credits} {t('Notes', 'Notes')}</p>
-                    <p className="text-[11px] text-gray-500 mb-1">{pack.label}</p>
-                    <p className="text-sm font-semibold text-gray-800">{pack.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
-                  </a>
-                ))}
+        {step === 'voice' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Quel type de voix ?', 'What voice type?')}</h2>
+            <p className="text-gray-500 text-[15px] mb-6">{t('Homme, femme ou duo ?', 'Male, female or duet?')}</p>
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {[
+                { key: 'male' as Gender, emoji: '👨', label: t('Homme', 'Male') },
+                { key: 'female' as Gender, emoji: '👩', label: t('Femme', 'Female') },
+                { key: 'duet' as Gender, emoji: '👫', label: t('Duo', 'Duet') },
+              ].map(g => (
+                <button key={g.key} onClick={() => setGender(g.key)} className={`flex flex-col items-center gap-2 py-6 rounded-2xl border-2 transition-all ${gender === g.key ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50' : 'border-gray-200 hover:border-brand-200'}`}>
+                  <span className="text-3xl">{g.emoji}</span>
+                  <span className="text-sm font-semibold text-gray-700">{g.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={goNext} disabled={!gender} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
+                {t('Continuer', 'Continue')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'message' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Décris ce que tu veux dans ta chanson', 'Describe what you want in your song')}</h2>
+            <div className="relative mb-2 mt-6">
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                maxLength={400}
+                className="w-full py-3.5 px-4 pr-12 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-300 outline-none min-h-[140px] text-[14.5px]"
+                placeholder={t('Ex : Joyeux anniversaire à mon ami Dioula...', 'E.g. Happy birthday to my friend...')}
+              />
+              <button type="button" onClick={toggleMic} className={`absolute top-3 right-3 p-2 rounded-full ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`} title={t('Dicter au micro', 'Dictate')}>
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            </div>
+            <button type="button" onClick={handleGenerateLyrics} disabled={lyricLoading} className="flex items-center gap-2 text-sm text-brand-600 font-bold mb-4 hover:text-brand-700">
+              <Wand2 className="w-4 h-4" /> {lyricLoading ? t('Génération...', 'Generating...') : t('Générer des paroles avec l\'IA', 'Generate lyrics with AI')}
+            </button>
+            <p className="text-xs text-gray-400 mb-6">
+              {t('Minimum 10 caractères', 'Minimum 10 characters')} ({message.length}/10) · 💡 {t('Plus tu donnes de détails, plus ta chanson sera personnalisée !', 'The more detail you give, the more personalized your song will be!')}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={goNext} disabled={message.length < 10} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
+                {t('Continuer', 'Continue')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'review' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
+            <p className="text-gray-500 text-[15px] mb-6">
+              {balance !== null && balance < 1
+                ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
+                : t('Prêt à créer ta chanson', 'Ready to create your song')}
+            </p>
+            <div className="grid grid-cols-3 gap-3 mb-6 text-center">
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <p className="text-2xl mb-1">{occasion ? occasionMeta[occasion] : '🎉'}</p>
+                <p className="text-xs font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <p className="text-2xl mb-1">{style ? styleMeta[style]?.emoji ?? '🎵' : '🎵'}</p>
+                <p className="text-xs font-semibold text-gray-700 capitalize">{style ? getStyleLabel(style) : ''}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <p className="text-2xl mb-1">{gender ? genderMeta[gender].emoji : '🎤'}</p>
+                <p className="text-xs font-semibold text-gray-700">{gender ? t(genderMeta[gender].fr, genderMeta[gender].en) : ''}</p>
               </div>
             </div>
-          )}
+            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-          <div className="flex gap-3">
-            <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
-            {balance === null ? (
-              <button disabled className="btn-secondary flex-1 opacity-60">{t('Vérification du solde…', 'Checking balance…')}</button>
-            ) : balance < 1 ? (
-              <a href="/notes" className="btn-primary flex-1 text-center">{t('Acheter des Notes', 'Buy Notes')}</a>
-            ) : (
-              <button onClick={handleSubmit} disabled={status === 'generating'} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {status === 'generating' ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {t('Génération...', 'Generating...')}
-                  </>
-                ) : (
-                  <><Sparkles className="w-5 h-5" /> {t('Générer ma chanson', 'Generate my song')}</>
-                )}
-              </button>
+            {balance !== null && balance < 1 && (
+              <div className="mb-5">
+                <p className="text-sm font-bold text-gray-700 mb-2">{t('Nos offres de Notes', 'Our Notes packs')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {packs.map(pack => (
+                    <a key={pack.id} href="/notes" className="rounded-2xl border-2 border-gray-200 hover:border-brand-300 p-3 text-center transition-colors">
+                      <p className="text-lg font-display font-extrabold text-brand-600">{pack.credits} {t('Notes', 'Notes')}</p>
+                      <p className="text-[11px] text-gray-500 mb-1">{pack.label}</p>
+                      <p className="text-sm font-semibold text-gray-800">{pack.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
+
+            <div className="flex gap-3">
+              <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
+              {balance === null ? (
+                <button disabled className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full bg-gray-100 text-gray-400">{t('Vérification du solde…', 'Checking balance…')}</button>
+              ) : balance < 1 ? (
+                <a href="/notes" className="flex-1 text-center font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200">{t('Acheter des Notes', 'Buy Notes')}</a>
+              ) : (
+                <button onClick={handleSubmit} disabled={status === 'generating'} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 flex items-center justify-center gap-2 disabled:opacity-70">
+                  {status === 'generating' ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> {t('Génération...', 'Generating...')}</>
+                  ) : (
+                    <><Sparkles className="w-5 h-5" /> {t('Générer ma chanson', 'Generate my song')}</>
+                  )}
+                </button>
+              )}
+            </div>
+            <p className="text-center text-xs text-gray-400 mt-4">🔒 {t('Paiement sécurisé • Mobile Money & Carte', 'Secure payment • Mobile Money & Card')}</p>
           </div>
-          <p className="text-center text-xs text-gray-400 mt-4">🔒 {t('Paiement sécurisé • Mobile Money & Carte', 'Secure payment • Mobile Money & Card')}</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

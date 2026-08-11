@@ -21,16 +21,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'File too large' }, { status: 400 });
   }
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+  const EXT_BY_TYPE: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  const ext = EXT_BY_TYPE[file.type];
+  if (!ext) {
     return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
   }
 
   const buffer = await file.arrayBuffer();
-  const fileName = `${user.id}/${params.id}.png`;
+  const fileName = `${user.id}/${params.id}.${ext}`;
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from('covers')
-    .upload(fileName, buffer, { contentType: 'image/png', upsert: true });
+    .upload(fileName, buffer, { contentType: file.type, upsert: true });
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
   const { data: publicData } = supabaseAdmin.storage.from('covers').getPublicUrl(fileName);
