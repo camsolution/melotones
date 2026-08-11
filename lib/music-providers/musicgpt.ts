@@ -46,7 +46,14 @@ export async function createMusicGPTPrediction(
   return `musicgpt_${taskId}`;
 }
 
-export async function checkMusicGPTPrediction(predictionId: string): Promise<string | null> {
+export type PredictionCheckResult =
+  | { status: 'completed'; url: string }
+  | { status: 'failed'; reason: string }
+  | { status: 'processing' };
+
+const FAILURE_STATUSES = ['FAILED', 'ERROR', 'CANCELLED', 'CANCELED'];
+
+export async function checkMusicGPTPrediction(predictionId: string): Promise<PredictionCheckResult> {
   const taskId = predictionId.replace('musicgpt_', '');
   const apiKey = process.env.MUSICGPT_API_KEY!;
 
@@ -57,15 +64,23 @@ export async function checkMusicGPTPrediction(predictionId: string): Promise<str
   const res = await fetch(url.toString(), {
     headers: { 'Authorization': apiKey },
   });
-  if (!res.ok) return null;
+  // Une erreur réseau/HTTP ponctuelle côté API de statut n'est pas un échec
+  // avéré de la génération elle-même — on la traite comme "toujours en cours"
+  // pour ne pas déclencher un remboursement sur un simple hoquet réseau.
+  if (!res.ok) return { status: 'processing' };
 
   const data = await res.json();
   const conversion = data.conversion;
-  if (!conversion) return null;
+  if (!conversion) return { status: 'processing' };
 
   const status = (conversion.status || '').toUpperCase();
   if (status === 'COMPLETED') {
-    return conversion.conversion_path_1 || conversion.conversion_path_2 || null;
+    const audioUrl = conversion.conversion_path_1 || conversion.conversion_path_2 || null;
+    if (audioUrl) return { status: 'completed', url: audioUrl };
+    return { status: 'failed', reason: 'MusicGPT a marqué la génération terminée mais sans fichier audio' };
   }
-  return null;
+  if (FAILURE_STATUSES.includes(status)) {
+    return { status: 'failed', reason: `MusicGPT a signalé l'échec de la génération (statut : ${conversion.status})` };
+  }
+  return { status: 'processing' };
 }

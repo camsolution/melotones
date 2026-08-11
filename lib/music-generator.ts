@@ -1,5 +1,7 @@
 import { checkSoniloPrediction } from './music-providers/sonilo';
-import { createMusicGPTPrediction, checkMusicGPTPrediction } from './music-providers/musicgpt';
+import { createMusicGPTPrediction, checkMusicGPTPrediction, PredictionCheckResult } from './music-providers/musicgpt';
+
+export type { PredictionCheckResult };
 
 type Provider = 'musicgpt';
 type GenderOption = 'male' | 'female' | 'duet';
@@ -32,8 +34,11 @@ async function createPrediction(provider: Provider, prompt: string, userId: stri
   }
 }
 
-export async function checkPrediction(predictionId: string): Promise<string | null> {
-  if (predictionId.startsWith('sonilo_')) return checkSoniloPrediction(predictionId);
+export async function checkPrediction(predictionId: string): Promise<PredictionCheckResult> {
+  if (predictionId.startsWith('sonilo_')) {
+    const url = await checkSoniloPrediction(predictionId);
+    return url ? { status: 'completed', url } : { status: 'processing' };
+  }
   if (predictionId.startsWith('musicgpt_')) return checkMusicGPTPrediction(predictionId);
-  return null;
+  return { status: 'processing' };
 }
