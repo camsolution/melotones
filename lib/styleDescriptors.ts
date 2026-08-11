@@ -1,40 +1,41 @@
-// Descripteurs techniques détaillés par style — les modèles IA généralistes
-// connaissent mal les genres très locaux (Coupé-Décalé, Cabo Love, Kompa,
-// Zouglou...). Plus la description est précise (BPM, instruments nommés,
-// structure, références artistiques reconnues), plus le résultat est fidèle.
+// Descripteurs techniques par style — les modèles IA généralistes connaissent
+// mal les genres très locaux (Coupé-Décalé, Cabo Love, Kompa, Zouglou...).
+// Volontairement concis (BPM + éléments essentiels) : un descriptif trop long
+// grignote la marge disponible pour le message libre de l'utilisateur avant la
+// limite de 300 caractères de MusicGPT (voir lib/promptBudget.ts).
 export const styleDescriptors: Record<string, string> = {
   afrobeat:
-    'Afrobeat style at 100-115 BPM: syncopated horn section (trumpet, saxophone), funky interlocking basslines, layered Afro-percussion, call-and-response chants, warm analog groove in the tradition of Fela Kuti and modern Afrobeats artists',
+    'Afrobeat at 100-115 BPM: syncopated horns, funky basslines, layered Afro-percussion, call-and-response chants, warm groove in the tradition of Fela Kuti',
   coupedecale:
-    'Coupé-Décalé style at 130-140 BPM: upbeat Ivorian dance rhythm, punchy electronic percussion, chant-driven ad-libs, celebratory festive energy, synth stabs, driving four-on-the-floor dance groove',
+    'Coupé-Décalé at 130-140 BPM: upbeat Ivorian dance rhythm, punchy electronic percussion, chant-driven ad-libs, festive four-on-the-floor groove',
   amapiano:
-    'Amapiano style at 112-120 BPM: deep jazzy piano chords, log drum bass, soft airy percussion, laid-back South African house groove, spacious atmospheric production with smooth vocal chops',
+    'Amapiano at 112-120 BPM: jazzy piano chords, log drum bass, airy percussion, laid-back South African house groove, smooth vocal chops',
   zouk:
-    'Zouk style at 120-130 BPM: warm synth pads, romantic mid-tempo Caribbean groove, smooth electric guitar melodies, soulful sung vocals, gentle percussion, sensual slow-dance atmosphere',
+    'Zouk at 120-130 BPM: warm synth pads, romantic mid-tempo Caribbean groove, smooth guitar melodies, soulful vocals, sensual slow-dance feel',
   rnb:
-    'Contemporary R&B at 70-90 BPM: smooth soulful vocals with rich layered harmonies, laid-back groove, warm electric piano and deep bass, subtle modern hi-hat patterns, romantic and emotional polished production',
+    'Contemporary R&B at 70-90 BPM: smooth soulful vocals, layered harmonies, warm electric piano and deep bass, romantic polished production',
   acoustic:
-    'Acoustic ballad style: intimate fingerpicked or strummed acoustic guitar, warm natural vocal delivery, minimal gentle percussion, emotional and heartfelt stripped-down arrangement',
+    'Acoustic ballad: intimate fingerpicked guitar, warm natural vocals, minimal percussion, heartfelt stripped-down arrangement',
   gospel:
-    'Gospel style: powerful uplifting choir harmonies, soulful lead vocals, Hammond organ, clapping rhythm, joyful and spiritual atmosphere, call-and-response congregational feel',
+    'Gospel: uplifting choir harmonies, soulful lead vocals, Hammond organ, clapping rhythm, joyful spiritual call-and-response feel',
   highlife:
     'Highlife style at 100-120 BPM: bright melodic electric guitar lines, horn section, swinging Ghanaian dance rhythm, warm percussion, celebratory upbeat groove',
   cabo:
-    'Cabo Love style (Cape Verdean romantic music) at 90-100 BPM: warm romantic synth pads, smooth mid-tempo groove influenced by zouk and kizomba, gentle melodic guitar lines, soulful Creole-style emotional vocal delivery, intimate slow-dance atmosphere',
+    'Cabo Love (Cape Verdean romance) at 90-100 BPM: warm synth pads, mid-tempo zouk/kizomba groove, melodic guitar, soulful Creole vocal delivery',
   rap:
     'Rap / Hip-Hop style at 85-95 BPM: punchy trap-influenced drum pattern, deep 808 bass, sharp hi-hats, rhythmic confident vocal delivery, modern urban production',
   afro:
-    'Afro-fusion style at 100-112 BPM: warm blend of African percussion and modern pop production, melodic guitar and kora-inspired lines, smooth soulful vocal delivery, contemporary Afro-pop groove with global crossover appeal',
+    'Afro-fusion at 100-112 BPM: African percussion with modern pop production, melodic kora-inspired guitar, soulful vocals, global crossover groove',
   reggae:
-    'Reggae style at 60-90 BPM: laid-back off-beat guitar skank, deep rolling basslines, one-drop drum pattern, warm organ bubble, soulful conscious vocal delivery in the tradition of Bob Marley and roots reggae',
+    'Reggae at 60-90 BPM: laid-back off-beat guitar skank, rolling basslines, one-drop drum pattern, organ bubble, conscious vocal delivery à la Bob Marley',
   kompa:
-    'Haitian Kompa (Compas) music at 100-120 BPM: smooth romantic Caribbean groove, tight interlocking guitar licks, warm synth pads, steady conga and cowbell rhythm, soulful French Creole-style vocal phrasing, danceable mid-tempo two-step feel',
+    'Haitian Kompa at 100-120 BPM: smooth Caribbean groove, interlocking guitar licks, warm synth pads, conga and cowbell rhythm, soulful Creole vocal phrasing',
   salsa:
-    'Salsa style at 170-200 BPM: energetic Latin percussion (congas, timbales, claves), punchy horn section, syncopated piano montuno, driving bassline, passionate call-and-response vocals, festive dance-floor energy',
+    'Salsa at 170-200 BPM: energetic Latin percussion (congas, timbales, claves), horn section, syncopated piano montuno, passionate call-and-response vocals',
   zouglou:
-    'Ivorian Zouglou at 110-125 BPM: rhythmic percussion-driven groove, chant-like call-and-response vocals, handclaps, upbeat communal street-party energy, minimal melodic instrumentation with a strong rhythmic pulse, in the tradition of Magic System',
+    'Ivorian Zouglou at 110-125 BPM: percussion-driven groove, chant-like call-and-response vocals, handclaps, street-party energy, in the tradition of Magic System',
   nigerianmusic:
-    'Contemporary Nigerian Afrobeats at 100-112 BPM: log drum bass, syncopated percussion, melodic Pidgin-English-style vocal ad-libs, warm synths, laid-back yet danceable groove in the tradition of modern Naija pop',
+    'Contemporary Nigerian Afrobeats at 100-112 BPM: log drum bass, syncopated percussion, Pidgin-English vocal ad-libs, laid-back danceable Naija-pop groove',
   arabic:
-    'Arabic pop style at 80-100 BPM: rich string orchestration (strings, oud), quarter-tone maqam melodic lines, driving darbuka percussion, emotive vocal ornamentation (melisma), blend of traditional Middle Eastern instrumentation with modern pop production',
+    'Arabic pop at 80-100 BPM: string orchestration (strings, oud), quarter-tone maqam melodies, darbuka percussion, emotive melisma vocal ornamentation',
 };
