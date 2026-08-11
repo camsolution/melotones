@@ -8,9 +8,12 @@ const APP_SHELL_PREFIXES = [
   '/dashboard', '/create', '/explore', '/history', '/shorts', '/statistiques', '/notes', '/profil', '/songs',
 ];
 
+const BARE_PREFIXES = ['/login', '/signup'];
+
 export default function AppShell({ session, children }: { session: Session | null; children: React.ReactNode }) {
   const pathname = usePathname();
   const inAppShell = APP_SHELL_PREFIXES.some(p => pathname === p || pathname?.startsWith(p + '/'));
+  const isBare = BARE_PREFIXES.some(p => pathname === p || pathname?.startsWith(p + '/'));
 
   if (inAppShell) {
     return (
@@ -19,6 +22,10 @@ export default function AppShell({ session, children }: { session: Session | nul
         <main className="flex-1 min-w-0">{children}</main>
       </div>
     );
+  }
+
+  if (isBare) {
+    return <main className="min-h-screen bg-gray-50">{children}</main>;
   }
 
   return (

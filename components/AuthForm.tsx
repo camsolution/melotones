@@ -79,7 +79,7 @@ export default function AuthForm() {
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-brand-500 via-magenta-500 to-amber-400">
               <Headphones className="w-7 h-7 text-white" strokeWidth={1.9} />
             </div>
-            <span className="font-display font-extrabold text-lg tracking-tight text-gray-800">IziMelo</span>
+            <span className="font-display font-extrabold text-lg tracking-tight text-gray-800">Melotones</span>
           </div>
 
           {status === 'sent' ? (
@@ -95,9 +95,8 @@ export default function AuthForm() {
             </div>
           ) : (
             <>
-              <h1 className="font-display font-extrabold text-2xl text-gray-800 text-balance">{t('Bienvenue sur IziMelo', 'Welcome to IziMelo')}</h1>
-              <p className="text-gray-500 mt-2 mb-1 text-[15px]">{t('Chaque histoire mérite sa chanson.', 'Every story deserves its song.')}</p>
-              <p className="text-gray-400 text-sm mb-7">{t('Connectez-vous pour créer vos chansons', 'Sign in to create your songs')}</p>
+              <h1 className="font-display font-extrabold text-2xl text-gray-800 text-balance">{t('Bienvenue sur Melotones', 'Welcome to Melotones')}</h1>
+              <p className="text-gray-400 text-sm mt-2 mb-7">{t('Connectez-vous pour créer vos chansons', 'Sign in to create your songs')}</p>
 
               <button
                 onClick={handleGoogle}
