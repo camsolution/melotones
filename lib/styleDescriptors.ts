@@ -1,10 +1,8 @@
 // Descripteurs techniques détaillés par style — les modèles IA généralistes
-// connaissent mal les genres très locaux (Mbalax, Coupé-Décalé, Cabo Love).
-// Plus la description est précise (BPM, instruments nommés, structure,
-// références artistiques reconnues), plus le résultat est fidèle.
+// connaissent mal les genres très locaux (Coupé-Décalé, Cabo Love, Kompa,
+// Zouglou...). Plus la description est précise (BPM, instruments nommés,
+// structure, références artistiques reconnues), plus le résultat est fidèle.
 export const styleDescriptors: Record<string, string> = {
-  mbalax:
-    'Authentic Senegalese Mbalax music at 130-150 BPM: driving sabar drum ensemble (nder lead drum, mbung-mbung, tama talking drum) playing complex polyrhythmic patterns, rhythmic breaks called "bakks", call-and-response griot-style vocals in the tradition of Youssou N\'Dour and Omar Pène, syncopated electric bass, layered electric guitar riffs over traditional percussion, energetic festive Senegalese dance groove with dynamic tempo builds and percussion solos',
   afrobeat:
     'Afrobeat style at 100-115 BPM: syncopated horn section (trumpet, saxophone), funky interlocking basslines, layered Afro-percussion, call-and-response chants, warm analog groove in the tradition of Fela Kuti and modern Afrobeats artists',
   coupedecale:
@@ -25,4 +23,18 @@ export const styleDescriptors: Record<string, string> = {
     'Cabo Love style (Cape Verdean romantic music) at 90-100 BPM: warm romantic synth pads, smooth mid-tempo groove influenced by zouk and kizomba, gentle melodic guitar lines, soulful Creole-style emotional vocal delivery, intimate slow-dance atmosphere',
   rap:
     'Rap / Hip-Hop style at 85-95 BPM: punchy trap-influenced drum pattern, deep 808 bass, sharp hi-hats, rhythmic confident vocal delivery, modern urban production',
+  afro:
+    'Afro-fusion style at 100-112 BPM: warm blend of African percussion and modern pop production, melodic guitar and kora-inspired lines, smooth soulful vocal delivery, contemporary Afro-pop groove with global crossover appeal',
+  reggae:
+    'Reggae style at 60-90 BPM: laid-back off-beat guitar skank, deep rolling basslines, one-drop drum pattern, warm organ bubble, soulful conscious vocal delivery in the tradition of Bob Marley and roots reggae',
+  kompa:
+    'Haitian Kompa (Compas) music at 100-120 BPM: smooth romantic Caribbean groove, tight interlocking guitar licks, warm synth pads, steady conga and cowbell rhythm, soulful French Creole-style vocal phrasing, danceable mid-tempo two-step feel',
+  salsa:
+    'Salsa style at 170-200 BPM: energetic Latin percussion (congas, timbales, claves), punchy horn section, syncopated piano montuno, driving bassline, passionate call-and-response vocals, festive dance-floor energy',
+  zouglou:
+    'Ivorian Zouglou at 110-125 BPM: rhythmic percussion-driven groove, chant-like call-and-response vocals, handclaps, upbeat communal street-party energy, minimal melodic instrumentation with a strong rhythmic pulse, in the tradition of Magic System',
+  nigerianmusic:
+    'Contemporary Nigerian Afrobeats at 100-112 BPM: log drum bass, syncopated percussion, melodic Pidgin-English-style vocal ad-libs, warm synths, laid-back yet danceable groove in the tradition of modern Naija pop',
+  arabic:
+    'Arabic pop style at 80-100 BPM: rich string orchestration (strings, oud), quarter-tone maqam melodic lines, driving darbuka percussion, emotive vocal ornamentation (melisma), blend of traditional Middle Eastern instrumentation with modern pop production',
 };

@@ -9,7 +9,7 @@ import { Generation } from '@/types';
 import { styleMeta } from '@/lib/styleMeta';
 import { styleTranslations } from '@/lib/listTranslations';
 
-const QUICK_STYLES = ['Afrobeat', 'Amapiano', 'RnB', 'Mbalax', 'Cabo'];
+const QUICK_STYLES = ['Afrobeat', 'Amapiano', 'RnB', 'Reggae', 'Cabo'];
 
 const STATUS_STYLES: Record<Generation['status'], string> = {
   completed: 'bg-green-100 text-green-800',
@@ -67,8 +67,8 @@ export default function DashboardPage() {
             {greeting}, {firstName} <span aria-hidden>👋</span>
           </h1>
           <p className="mt-2 text-violet-100/80 max-w-md">
-            {t("Un Afrobeat, un Amapiano, une déclaration en Mbalax — dites-nous l'occasion, on compose le titre.",
-              'An Afrobeat, an Amapiano, a Mbalax declaration — tell us the occasion, we compose the track.')}
+            {t("Un Afrobeat, un Amapiano, une déclaration en Reggae — dites-nous l'occasion, on compose le titre.",
+              'An Afrobeat, an Amapiano, a Reggae declaration — tell us the occasion, we compose the track.')}
           </p>
 
           <div className="flex flex-wrap gap-2 mt-6">
