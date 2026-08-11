@@ -29,10 +29,12 @@ export async function POST(request: Request) {
   let couponId: string | null = null;
 
   if (coupon_code) {
+    // .eq (pas .ilike) : un code contenant "%" ou "_" serait interprété comme
+    // un joker SQL et pourrait matcher un coupon actif sans le connaître.
     const { data: coupon } = await supabaseAdmin
       .from('coupons')
       .select('*')
-      .ilike('code', coupon_code.trim())
+      .eq('code', String(coupon_code).trim().toUpperCase())
       .eq('active', true)
       .single();
 

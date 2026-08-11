@@ -6,6 +6,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (error) return NextResponse.json({ error }, { status });
 
   const updates = await request.json();
+  if ('discount_percent' in updates && (updates.discount_percent < 1 || updates.discount_percent > 100)) {
+    return NextResponse.json({ error: 'Remise invalide (1-100%)' }, { status: 400 });
+  }
   const allowed = ['discount_percent', 'quota', 'active'];
   const filtered: Record<string, any> = {};
   for (const key of allowed) if (key in updates) filtered[key] = updates[key];

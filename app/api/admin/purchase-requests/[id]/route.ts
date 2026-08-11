@@ -10,14 +10,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
   }
 
-  const { data: req, error: fetchError } = await supabaseAdmin
+  // Compare-and-swap : ne bascule le statut que s'il est encore "pending".
+  // Fait AVANT tout octroi de crédits, pour qu'un double-clic (ou deux
+  // requêtes concurrentes) ne puisse pas créditer deux fois le même achat.
+  const { data: req, error: casError } = await supabaseAdmin
     .from('purchase_requests')
-    .select('*')
+    .update({
+      status: action === 'approve' ? 'approved' : 'rejected',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: user!.id,
+    })
     .eq('id', params.id)
+    .eq('status', 'pending')
+    .select()
     .single();
 
-  if (fetchError || !req) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
-  if (req.status !== 'pending') return NextResponse.json({ error: 'Déjà traitée' }, { status: 409 });
+  if (casError || !req) {
+    return NextResponse.json({ error: 'Demande introuvable ou déjà traitée' }, { status: 409 });
+  }
 
   if (action === 'approve') {
     const { data: creditRow } = await supabaseAdmin
@@ -44,17 +54,5 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
   }
 
-  const { data: updated, error: updateError } = await supabaseAdmin
-    .from('purchase_requests')
-    .update({
-      status: action === 'approve' ? 'approved' : 'rejected',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: user!.id,
-    })
-    .eq('id', params.id)
-    .select()
-    .single();
-
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-  return NextResponse.json(updated);
+  return NextResponse.json(req);
 }
