@@ -58,6 +58,8 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 md:py-10 space-y-5">
+      <FeaturedSong />
+
       <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-5">
         {/* Hero */}
         <section className="relative overflow-hidden rounded-[28px] p-8 md:p-10 bg-gradient-to-br from-stage via-[#241852] to-[#3a1f57] text-white shadow-xl">
@@ -216,8 +218,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
-
-          <FeaturedSong />
         </div>
       </div>
     </div>
