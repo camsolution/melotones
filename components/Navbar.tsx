@@ -44,7 +44,7 @@ export default function Navbar({ session: initialSession }: { session: Session |
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-pink-500" onClick={closeMobile}>
           <Music className="w-7 h-7 text-brand-600" />
-          IziMelo
+          Melotones
           {inAdminArea && <span className="text-sm font-medium text-gray-400 ml-1">/ Admin</span>}
         </Link>
 

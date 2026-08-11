@@ -8,7 +8,7 @@ const manrope = Manrope({ subsets: ['latin'], weight: ['400', '500', '600', '700
 const unbounded = Unbounded({ subsets: ['latin'], weight: ['500', '700', '900'], variable: '--font-unbounded' });
 
 export const metadata = {
-  title: 'IziMelo - Créez des chansons uniques avec l’IA',
+  title: 'Melotones - Créez des chansons uniques avec l’IA',
   description: 'Générez des morceaux personnalisés pour chaque occasion',
 };
 
