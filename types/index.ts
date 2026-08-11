@@ -7,6 +7,7 @@ export type Generation = {
   status: 'queued' | 'processing' | 'completed' | 'failed';
   audio_url: string | null;
   is_public: boolean;
+  cover_url?: string | null;
   created_at: string;
 };
 
@@ -18,4 +19,5 @@ export type ExampleSong = {
   audio_url: string;
   description: string | null;
   plays: number;
+  cover_url?: string | null;
 };

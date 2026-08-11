@@ -3,6 +3,7 @@ import { Generation } from '@/types';
 import { Download, Share2, MessageCircle, Copy, Check, RefreshCw, Globe2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import CoverStudio from '@/components/CoverStudio';
 
 export default function SongDetail({ song: initialSong, isOwner = false }: { song: Generation; isOwner?: boolean }) {
   const { t } = useLanguage();
@@ -70,6 +71,9 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
 
   return (
     <div className="card max-w-2xl mx-auto text-center">
+      {song.cover_url && (
+        <img src={song.cover_url} alt="" className="w-48 h-48 mx-auto rounded-2xl object-cover shadow-lg mb-5" />
+      )}
       <h1 className="text-3xl font-bold mb-2 text-gray-800">{t('Votre chanson est prête !', 'Your song is ready!')}</h1>
       <div className="flex flex-wrap justify-center gap-2 text-sm text-gray-600 mb-6">
         <span className="bg-brand-100 text-brand-800 px-3 py-1 rounded-full capitalize">{song.occasion}</span>
@@ -107,6 +111,16 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${song.is_public ? 'translate-x-5' : ''}`} />
               </button>
             </div>
+          )}
+
+          {isOwner && (
+            <CoverStudio
+              generationId={song.id}
+              occasion={song.occasion}
+              style={song.style}
+              initialCoverUrl={song.cover_url ?? null}
+              onSaved={(coverUrl) => setSong((s) => ({ ...s, cover_url: coverUrl }))}
+            />
           )}
         </>
       ) : song.status === 'failed' ? (
