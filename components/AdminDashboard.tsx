@@ -20,7 +20,11 @@ type RefundRequest = {
 type LiveStats = {
   onlineCount: number; processingGenerations: number; pendingPurchaseRequests: number;
   pendingRefundRequests: number; openChatConversations: number; revenueTodayFcfa: number; newSignupsToday: number;
-  unacknowledgedProviderErrors: number;
+  unacknowledgedProviderErrors: number; providerBalanceUsd: number; providerBalanceGenerations: number | null;
+};
+type ProviderBalance = {
+  toppedUpUsd: number; costPerGenerationUsd: number; toppedUpAt: string | null;
+  consumedSinceTopUp: number; estimatedRemainingUsd: number; estimatedRemainingGenerations: number | null;
 };
 type ProviderError = {
   id: string; generation_id: string | null; user_id: string; user_email?: string; provider: string; message: string;
@@ -74,6 +78,9 @@ export default function AdminDashboard() {
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [providerErrors, setProviderErrors] = useState<ProviderError[]>([]);
   const [live, setLive] = useState<LiveStats | null>(null);
+  const [providerBalance, setProviderBalance] = useState<ProviderBalance | null>(null);
+  const [topUpForm, setTopUpForm] = useState({ topped_up_usd: '', cost_per_generation_usd: '' });
+  const [savingTopUp, setSavingTopUp] = useState(false);
   const [chatConversations, setChatConversations] = useState<ChatConversation[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -90,7 +97,7 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
@@ -103,6 +110,7 @@ export default function AdminDashboard() {
       fetch('/api/admin/refund-requests'),
       fetch('/api/admin/campaigns'),
       fetch('/api/admin/provider-errors'),
+      fetch('/api/admin/provider-balance'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
@@ -116,6 +124,7 @@ export default function AdminDashboard() {
     if (refundsRes.ok) setRefunds(await refundsRes.json());
     if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
     if (providerErrorsRes.ok) setProviderErrors(await providerErrorsRes.json());
+    if (providerBalanceRes.ok) setProviderBalance(await providerBalanceRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -216,6 +225,20 @@ export default function AdminDashboard() {
     const res = await fetch(`/api/admin/provider-errors/${id}`, { method: 'PATCH' });
     setBusyId(null);
     if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleSaveTopUp = async () => {
+    const topped_up_usd = Number(topUpForm.topped_up_usd);
+    const cost_per_generation_usd = Number(topUpForm.cost_per_generation_usd);
+    if (!topUpForm.topped_up_usd || isNaN(topped_up_usd) || isNaN(cost_per_generation_usd)) return;
+    setSavingTopUp(true);
+    const res = await fetch('/api/admin/provider-balance', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topped_up_usd, cost_per_generation_usd }),
+    });
+    setSavingTopUp(false);
+    if (res.ok) { setTopUpForm({ topped_up_usd: '', cost_per_generation_usd: '' }); loadAll(); }
+    else alert('Erreur enregistrement.');
   };
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
@@ -388,7 +411,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard Admin — Melotones</h1>
 
       {live && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-6">
           <div className="card !p-3 text-center relative overflow-hidden">
             <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <p className="text-2xl font-bold text-green-600">{live.onlineCount}</p>
@@ -422,6 +445,12 @@ export default function AdminDashboard() {
             <p className={`text-2xl font-bold ${live.unacknowledgedProviderErrors > 0 ? 'text-red-600' : 'text-gray-700'}`}>{live.unacknowledgedProviderErrors}</p>
             <p className="text-[11px] text-gray-500">Alertes fournisseur</p>
           </div>
+          <div className="card !p-3 text-center">
+            <p className={`text-2xl font-bold ${live.providerBalanceGenerations !== null && live.providerBalanceGenerations < 20 ? 'text-red-600' : 'text-gray-700'}`}>
+              {live.providerBalanceGenerations !== null ? live.providerBalanceGenerations : `$${live.providerBalanceUsd.toFixed(0)}`}
+            </p>
+            <p className="text-[11px] text-gray-500">{live.providerBalanceGenerations !== null ? 'Générations MusicGPT restantes' : 'Solde MusicGPT (USD)'}</p>
+          </div>
         </div>
       )}
 
@@ -444,11 +473,55 @@ export default function AdminDashboard() {
       {loading && <p className="text-gray-500 mb-6">Chargement…</p>}
 
       {tab === 'overview' && stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="card text-center"><p className="text-3xl font-bold text-brand-600">{stats.totalUsers}</p><p className="text-sm text-gray-500">Utilisateurs</p></div>
-          <div className="card text-center"><p className="text-3xl font-bold text-brand-600">{stats.totalGenerations}</p><p className="text-sm text-gray-500">Chansons générées</p></div>
-          <div className="card text-center"><p className="text-3xl font-bold text-orange-500">{stats.pendingRequests}</p><p className="text-sm text-gray-500">Demandes en attente</p></div>
-          <div className="card text-center"><p className="text-3xl font-bold text-green-600">{stats.totalRevenueFcfa.toLocaleString('fr-FR')} FCFA</p><p className="text-sm text-gray-500">Revenus validés</p></div>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="card text-center"><p className="text-3xl font-bold text-brand-600">{stats.totalUsers}</p><p className="text-sm text-gray-500">Utilisateurs</p></div>
+            <div className="card text-center"><p className="text-3xl font-bold text-brand-600">{stats.totalGenerations}</p><p className="text-sm text-gray-500">Chansons générées</p></div>
+            <div className="card text-center"><p className="text-3xl font-bold text-orange-500">{stats.pendingRequests}</p><p className="text-sm text-gray-500">Demandes en attente</p></div>
+            <div className="card text-center"><p className="text-3xl font-bold text-green-600">{stats.totalRevenueFcfa.toLocaleString('fr-FR')} FCFA</p><p className="text-sm text-gray-500">Revenus validés</p></div>
+          </div>
+
+          <div className="card">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Solde fournisseur MusicGPT</h2>
+                <p className="text-xs text-gray-500">MusicGPT n'expose aucune API de solde — estimation calculée à partir d'un dernier rechargement connu et du nombre réel de générations lancées depuis.</p>
+              </div>
+              <a href="https://musicgpt.com/api-dashboard" target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs flex-none">Renouveler chez MusicGPT ↗</a>
+            </div>
+
+            {providerBalance && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                <div className="p-3 rounded-xl bg-gray-50 text-center">
+                  <p className="text-xl font-bold text-gray-800">${providerBalance.estimatedRemainingUsd.toFixed(2)}</p>
+                  <p className="text-[11px] text-gray-500">Solde estimé</p>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 text-center">
+                  <p className="text-xl font-bold text-gray-800">{providerBalance.estimatedRemainingGenerations ?? '—'}</p>
+                  <p className="text-[11px] text-gray-500">Générations restantes (est.)</p>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 text-center">
+                  <p className="text-xl font-bold text-gray-800">{providerBalance.consumedSinceTopUp}</p>
+                  <p className="text-[11px] text-gray-500">Consommées depuis le rechargement</p>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 text-center">
+                  <p className="text-xl font-bold text-gray-800">{providerBalance.toppedUpAt ? new Date(providerBalance.toppedUpAt).toLocaleDateString('fr-FR') : '—'}</p>
+                  <p className="text-[11px] text-gray-500">Dernier rechargement</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3 items-center border-t border-gray-100 pt-4">
+              <label className="text-sm text-gray-500">Montant rechargé ($)
+                <input type="number" min="0" step="0.01" value={topUpForm.topped_up_usd} onChange={e => setTopUpForm(f => ({ ...f, topped_up_usd: e.target.value }))} className="ml-2 w-28 border border-gray-300 rounded px-2 py-1.5" />
+              </label>
+              <label className="text-sm text-gray-500">Coût / génération ($)
+                <input type="number" min="0" step="0.001" value={topUpForm.cost_per_generation_usd} onChange={e => setTopUpForm(f => ({ ...f, cost_per_generation_usd: e.target.value }))} className="ml-2 w-24 border border-gray-300 rounded px-2 py-1.5" />
+              </label>
+              <button disabled={savingTopUp || !topUpForm.topped_up_usd} onClick={handleSaveTopUp} className="btn-primary text-sm">Enregistrer le rechargement</button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">À faire après chaque recharge sur MusicGPT — le compteur de générations restantes se met ensuite à jour automatiquement à chaque nouvelle chanson lancée.</p>
+          </div>
         </div>
       )}
 

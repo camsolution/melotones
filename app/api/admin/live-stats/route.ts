@@ -1,4 +1,5 @@
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
+import { computeProviderBalanceEstimate } from '@/lib/providerBalance';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -34,8 +35,11 @@ export async function GET() {
   ]);
 
   const revenueTodayFcfa = (revenueRows || []).reduce((sum, r) => sum + (r.price_fcfa || 0), 0);
+  const providerBalance = await computeProviderBalanceEstimate();
 
   return NextResponse.json({
+    providerBalanceUsd: providerBalance.estimatedRemainingUsd,
+    providerBalanceGenerations: providerBalance.estimatedRemainingGenerations,
     onlineCount: onlineCount ?? 0,
     processingGenerations: processingGenerations ?? 0,
     pendingPurchaseRequests: pendingPurchaseRequests ?? 0,
