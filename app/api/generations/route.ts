@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
 import { styleDescriptors } from '@/lib/styleDescriptors';
+import { flagRefund } from '@/lib/refunds';
 
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
@@ -107,8 +108,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: generation.id, status: 'processing' });
   } catch (err: any) {
     console.error('Generation launch error:', err);
-    if (!isAdmin) await refundCredit(user.id);
     await supabaseAdmin.from('generations').update({ status: 'failed' }).eq('id', generation.id);
+    if (!isAdmin) await flagRefund(generation.id, user.id, 'Échec du lancement de la génération chez le fournisseur');
     return NextResponse.json({ error: err.message || 'AI generation failed' }, { status: 500 });
   }
 }

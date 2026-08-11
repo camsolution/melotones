@@ -13,8 +13,12 @@ type Coupon = { id: string; code: string; partner_id: string; discount_percent: 
 type Partner = { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; active: boolean; coupons: Coupon[] };
 type Ad = { id: string; advertiser_name: string; media_url: string; media_type: 'image' | 'video'; target_url: string | null; active: boolean; sort_order: number };
 type FeaturedSong = { id: string; generation_id: string; active: boolean; generation: { id: string; occasion: string; style: string; status: string } | null };
+type RefundRequest = {
+  id: string; generation_id: string; user_id: string; user_email?: string; credits: number; reason: string | null;
+  status: string; created_at: string; generation: { occasion: string; style: string; status: string } | null;
+};
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured'] as const;
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -26,6 +30,7 @@ const TAB_LABELS: Record<Tab, string> = {
   partners: 'Partenaires',
   ads: 'Publicité',
   featured: 'Vedette',
+  refunds: 'Remboursements',
 };
 
 export default function AdminDashboard() {
@@ -41,6 +46,7 @@ export default function AdminDashboard() {
   const [featured, setFeatured] = useState<FeaturedSong[]>([]);
   const [allCompletedGens, setAllCompletedGens] = useState<AdminGeneration[]>([]);
   const [newFeaturedId, setNewFeaturedId] = useState('');
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
@@ -49,7 +55,7 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
@@ -59,6 +65,7 @@ export default function AdminDashboard() {
       fetch('/api/admin/ads'),
       fetch('/api/admin/featured-songs'),
       fetch('/api/admin/generations?status=completed'),
+      fetch('/api/admin/refund-requests'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
@@ -69,6 +76,7 @@ export default function AdminDashboard() {
     if (adsRes.ok) setAds(await adsRes.json());
     if (featuredRes.ok) setFeatured(await featuredRes.json());
     if (allGenRes.ok) setAllCompletedGens(await allGenRes.json());
+    if (refundsRes.ok) setRefunds(await refundsRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -225,8 +233,19 @@ export default function AdminDashboard() {
     if (res.ok) loadAll(); else alert('Erreur.');
   };
 
+  const handleRefundAction = async (id: string, action: 'approve' | 'reject') => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/refund-requests/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur lors du traitement.');
+  };
+
   const pending = requests.filter(r => r.status === 'pending');
   const processed = requests.filter(r => r.status !== 'pending');
+  const pendingRefunds = refunds.filter(r => r.status === 'pending');
+  const processedRefunds = refunds.filter(r => r.status !== 'pending');
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -241,6 +260,7 @@ export default function AdminDashboard() {
           >
             {TAB_LABELS[t]}
             {t === 'requests' && pending.length > 0 ? ` (${pending.length})` : ''}
+            {t === 'refunds' && pendingRefunds.length > 0 ? ` (${pendingRefunds.length})` : ''}
           </button>
         ))}
       </div>
@@ -503,6 +523,44 @@ export default function AdminDashboard() {
               </div>
             ))}
             {featured.length === 0 && <p className="text-gray-500">Aucune chanson en vedette pour le moment.</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'refunds' && (
+        <div>
+          <h2 className="text-lg font-bold mb-4 text-gray-800">En attente ({pendingRefunds.length})</h2>
+          {pendingRefunds.length === 0 ? <p className="text-gray-500 mb-8">Aucune demande de remboursement en attente.</p> : (
+            <div className="space-y-3 mb-8">
+              {pendingRefunds.map(r => (
+                <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-gray-800">{r.user_email || r.user_id}</p>
+                    <p className="text-sm text-gray-600 capitalize">
+                      {r.credits} note{r.credits > 1 ? 's' : ''} · {r.generation ? `${r.generation.occasion} / ${r.generation.style}` : 'chanson supprimée'}
+                    </p>
+                    {r.reason && <p className="text-xs text-gray-500 italic">{r.reason}</p>}
+                    <p className="text-xs text-gray-400">{new Date(r.created_at).toLocaleString('fr-FR')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button disabled={busyId === r.id} onClick={() => handleRefundAction(r.id, 'approve')} className="btn-primary text-sm">Approuver</button>
+                    <button disabled={busyId === r.id} onClick={() => handleRefundAction(r.id, 'reject')} className="btn-secondary text-sm">Rejeter</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <h2 className="text-lg font-bold mb-4 text-gray-800">Historique</h2>
+          <div className="space-y-2">
+            {processedRefunds.map(r => (
+              <div key={r.id} className="flex items-center justify-between text-sm text-gray-600 border-b border-gray-100 py-2">
+                <span>{r.user_email || r.user_id} — {r.credits} note{r.credits > 1 ? 's' : ''}{r.generation ? ` — ${r.generation.occasion} / ${r.generation.style}` : ''}</span>
+                <span className={r.status === 'approved' ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                  {r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
+                </span>
+              </div>
+            ))}
+            {processedRefunds.length === 0 && <p className="text-gray-400 text-sm">Aucun historique.</p>}
           </div>
         </div>
       )}
