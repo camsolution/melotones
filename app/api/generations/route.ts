@@ -1,7 +1,18 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
 import { styleDescriptors } from '@/lib/styleDescriptors';
+
+const MAX_FIELD_LENGTH = 400;
+const GENERATION_COOLDOWN_MS = 20_000;
+
+async function refundCredit(supabase: SupabaseClient, userId: string) {
+  const { data: fresh } = await supabase.from('user_credits').select('balance').eq('user_id', userId).single();
+  if (fresh) {
+    await supabase.from('user_credits').update({ balance: fresh.balance + 1 }).eq('user_id', userId);
+  }
+}
 
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
@@ -11,6 +22,22 @@ export async function POST(request: Request) {
   const { occasion, style, custom_message, voice_gender } = await request.json();
   if (!occasion || !style || !custom_message) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+  if (
+    String(occasion).length > MAX_FIELD_LENGTH ||
+    String(style).length > MAX_FIELD_LENGTH ||
+    String(custom_message).length > MAX_FIELD_LENGTH
+  ) {
+    return NextResponse.json({ error: 'Field too long' }, { status: 400 });
+  }
+
+  const { count: recentCount } = await supabase
+    .from('generations')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', new Date(Date.now() - GENERATION_COOLDOWN_MS).toISOString());
+  if ((recentCount ?? 0) > 0) {
+    return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération.' }, { status: 429 });
   }
 
   let { data: creditRow, error: creditError } = await supabase
@@ -33,11 +60,19 @@ export async function POST(request: Request) {
     if (creditRow.balance < 1) {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
     }
-    const { error: deductError } = await supabase
+    // Compare-and-swap: n'affecte une ligne que si le solde n'a pas changé
+    // depuis la lecture ci-dessus — évite qu'une double-soumission concurrente
+    // ne fasse générer deux chansons pour une seule Note déduite.
+    const { data: deducted, error: deductError } = await supabase
       .from('user_credits')
       .update({ balance: creditRow.balance - 1 })
-      .eq('user_id', user.id);
-    if (deductError) return NextResponse.json({ error: 'Credit deduction failed' }, { status: 500 });
+      .eq('user_id', user.id)
+      .eq('balance', creditRow.balance)
+      .select()
+      .single();
+    if (deductError || !deducted) {
+      return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
+    }
   }
 
   const { data: generation, error: insertError } = await supabase
@@ -47,9 +82,7 @@ export async function POST(request: Request) {
     .single();
 
   if (insertError || !generation) {
-    if (!isAdmin) {
-      await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
-    }
+    if (!isAdmin) await refundCredit(supabase, user.id);
     return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
   }
 
@@ -69,9 +102,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: generation.id, status: 'processing' });
   } catch (err: any) {
     console.error('Generation launch error:', err);
-    if (!isAdmin) {
-      await supabase.from('user_credits').update({ balance: creditRow.balance }).eq('user_id', user.id);
-    }
+    if (!isAdmin) await refundCredit(supabase, user.id);
     await supabase.from('generations').update({ status: 'failed' }).eq('id', generation.id);
     return NextResponse.json({ error: err.message || 'AI generation failed' }, { status: 500 });
   }

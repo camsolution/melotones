@@ -11,10 +11,14 @@ export async function createMusicGPTPrediction(
   if (!apiKey) throw new Error('MusicGPT non configuré (MUSICGPT_API_KEY manquant)');
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const webhookSecret = process.env.MUSICGPT_WEBHOOK_SECRET;
+  const webhookUrl = webhookSecret
+    ? `${siteUrl}/api/webhooks/musicgpt?token=${webhookSecret}`
+    : `${siteUrl}/api/webhooks/musicgpt`;
 
   const body: Record<string, any> = {
     music_style: prompt,
-    webhook_url: `${siteUrl}/api/webhooks/musicgpt`,
+    webhook_url: webhookUrl,
   };
   // MusicGPT ne supporte pas nativement "duet" en tant que valeur gender —
   // dans ce cas on laisse le modèle libre (souvent il alterne naturellement).

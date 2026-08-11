@@ -235,6 +235,7 @@ export default function CreateForm() {
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
+              maxLength={400}
               className="w-full py-3 px-4 pr-12 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none min-h-[140px]"
               placeholder={t('Ex : Joyeux anniversaire à mon ami Dioula...', 'E.g. Happy birthday to my friend...')}
             />

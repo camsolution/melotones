@@ -3,6 +3,15 @@ import { supabaseAdmin } from '@/lib/admin';
 import { finalizeIfReady } from '@/lib/song-processing';
 
 export async function POST(request: Request) {
+  const expectedToken = process.env.MUSICGPT_WEBHOOK_SECRET;
+  if (expectedToken) {
+    const providedToken = new URL(request.url).searchParams.get('token');
+    if (providedToken !== expectedToken) {
+      console.warn('Webhook MusicGPT: jeton invalide ou manquant');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   let taskId: string | null = null;
   try {
     const body = await request.json();

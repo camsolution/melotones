@@ -13,6 +13,12 @@ export async function POST(request: Request) {
   }
 
   const { occasion, style, hint } = await request.json();
+  if (!occasion || !style) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+  if (String(occasion).length > 400 || String(style).length > 400 || String(hint ?? '').length > 400) {
+    return NextResponse.json({ error: 'Field too long' }, { status: 400 });
+  }
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
