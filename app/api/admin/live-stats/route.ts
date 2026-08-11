@@ -21,6 +21,7 @@ export async function GET() {
     { count: openChatConversations },
     { data: revenueRows },
     { count: newSignupsToday },
+    { count: unacknowledgedProviderErrors },
   ] = await Promise.all([
     supabaseAdmin.from('presence').select('*', { count: 'exact', head: true }).gte('last_seen_at', onlineSince),
     supabaseAdmin.from('generations').select('*', { count: 'exact', head: true }).eq('status', 'processing'),
@@ -29,6 +30,7 @@ export async function GET() {
     supabaseAdmin.from('chat_conversations').select('*', { count: 'exact', head: true }).eq('status', 'escalated'),
     supabaseAdmin.from('purchase_requests').select('price_fcfa').eq('status', 'approved').gte('created_at', todayStart.toISOString()),
     supabaseAdmin.from('user_credits').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+    supabaseAdmin.from('provider_errors').select('*', { count: 'exact', head: true }).eq('acknowledged', false),
   ]);
 
   const revenueTodayFcfa = (revenueRows || []).reduce((sum, r) => sum + (r.price_fcfa || 0), 0);
@@ -41,5 +43,6 @@ export async function GET() {
     openChatConversations: openChatConversations ?? 0,
     revenueTodayFcfa,
     newSignupsToday: newSignupsToday ?? 0,
+    unacknowledgedProviderErrors: unacknowledgedProviderErrors ?? 0,
   });
 }

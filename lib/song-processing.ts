@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/admin';
 import { checkPrediction } from '@/lib/music-generator';
 import { autoRefund, requestRefundApproval, autoRejectIfPending } from '@/lib/refunds';
+import { logProviderError } from '@/lib/providerErrors';
 
 const STALE_THRESHOLD_MS = 15 * 60 * 1000;
 
@@ -40,21 +41,28 @@ export async function finalizeIfReady(generationId: string): Promise<'completed'
     // un double remboursement si le webhook et le polling arrivent en même temps.
     const { data: updated } = await supabaseAdmin
       .from('generations')
-      .update({ status: 'failed' })
+      .update({ status: 'failed', failure_reason: prediction.reason })
       .eq('id', generationId)
       .eq('status', gen.status)
       .select()
       .single();
-    if (updated) await autoRefund(generationId, gen.user_id, prediction.reason);
+    if (updated) {
+      await logProviderError(generationId, gen.user_id, prediction.reason);
+      await autoRefund(generationId, gen.user_id, prediction.reason);
+    }
     return 'failed';
   }
 
   // prediction.status === 'completed'
   const resp = await fetch(prediction.url);
   if (!resp.ok) {
+    const reason = 'Échec du téléchargement audio depuis le fournisseur';
     const { data: updated } = await supabaseAdmin
-      .from('generations').update({ status: 'failed' }).eq('id', generationId).eq('status', gen.status).select().single();
-    if (updated) await autoRefund(generationId, gen.user_id, 'Échec du téléchargement audio depuis le fournisseur');
+      .from('generations').update({ status: 'failed', failure_reason: reason }).eq('id', generationId).eq('status', gen.status).select().single();
+    if (updated) {
+      await logProviderError(generationId, gen.user_id, reason);
+      await autoRefund(generationId, gen.user_id, reason);
+    }
     return 'failed';
   }
 
@@ -65,9 +73,13 @@ export async function finalizeIfReady(generationId: string): Promise<'completed'
     .upload(fileName, buffer, { contentType: 'audio/mpeg', upsert: true });
 
   if (uploadErr) {
+    const reason = "Échec de l'enregistrement du fichier audio";
     const { data: updated } = await supabaseAdmin
-      .from('generations').update({ status: 'failed' }).eq('id', generationId).eq('status', gen.status).select().single();
-    if (updated) await autoRefund(generationId, gen.user_id, "Échec de l'enregistrement du fichier audio");
+      .from('generations').update({ status: 'failed', failure_reason: reason }).eq('id', generationId).eq('status', gen.status).select().single();
+    if (updated) {
+      await logProviderError(generationId, gen.user_id, reason);
+      await autoRefund(generationId, gen.user_id, reason);
+    }
     return 'failed';
   }
 

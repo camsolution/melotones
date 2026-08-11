@@ -8,6 +8,7 @@ import { occasionTranslations, styleTranslations } from '@/lib/listTranslations'
 import { styleMeta } from '@/lib/styleMeta';
 import { occasionMeta } from '@/lib/occasionMeta';
 import { Pack } from '@/lib/pricing';
+import { VOICE_LANGUAGE_NAMES, computeMessageBudget, MIN_MESSAGE_LENGTH } from '@/lib/promptBudget';
 
 const genderMeta: Record<Gender, { emoji: string; fr: string; en: string }> = {
   male: { emoji: '👨', fr: 'Homme', en: 'Male' },
@@ -67,6 +68,24 @@ export default function CreateForm() {
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;
   const getStyleLabel = (key: string) => styleTranslations[key]?.[lang] ?? key;
+
+  // Le style choisi détermine la place restante pour le message libre avant la
+  // limite de MusicGPT — les styles les plus décrits (Arabic, Cabo Love...)
+  // laissent moins de marge que les styles plus courts.
+  const voiceLanguage = VOICE_LANGUAGE_NAMES[lang] || 'French';
+  const messageBudget = style ? computeMessageBudget(style, occasion || '', voiceLanguage) : { min: MIN_MESSAGE_LENGTH, max: 400 };
+  const messageLen = message.length;
+  const messageZone: 'short' | 'good' | 'warn' | 'over' =
+    messageLen < messageBudget.min ? 'short' :
+    messageLen > messageBudget.max ? 'over' :
+    messageLen > messageBudget.max * 0.8 ? 'warn' : 'good';
+  const messageZoneMeta = {
+    short: { color: '#EF4444', bg: 'bg-red-50', label: t('Trop court', 'Too short'), icon: '❌' },
+    good: { color: '#22C55E', bg: 'bg-emerald-50', label: t('Bon', 'Good'), icon: '✅' },
+    warn: { color: '#F59E0B', bg: 'bg-amber-50', label: t('Presque plein', 'Almost full'), icon: '⚠️' },
+    over: { color: '#EF4444', bg: 'bg-red-50', label: t('Trop long', 'Too long'), icon: '❌' },
+  }[messageZone];
+  const messageValid = messageLen >= messageBudget.min && messageLen <= messageBudget.max;
 
   const goNext = () => setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
   const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
@@ -255,11 +274,11 @@ export default function CreateForm() {
         {step === 'message' && (
           <div>
             <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Décris ce que tu veux dans ta chanson', 'Describe what you want in your song')}</h2>
-            <div className="relative mb-2 mt-6">
+            <div className="relative mb-3 mt-6">
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                maxLength={400}
+                maxLength={messageBudget.max}
                 className="w-full py-3.5 px-4 pr-12 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-300 outline-none min-h-[140px] text-[14.5px]"
                 placeholder={t('Ex : Joyeux anniversaire à mon ami Dioula...', 'E.g. Happy birthday to my friend...')}
               />
@@ -267,15 +286,33 @@ export default function CreateForm() {
                 {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Débitmètre vert/jaune/rouge : la marge disponible dépend du style choisi */}
+            <div className="mb-2">
+              <div className="relative h-2.5 rounded-full overflow-hidden bg-gray-100">
+                <div className="absolute inset-y-0 left-0 bg-red-100" style={{ width: `${(messageBudget.min / messageBudget.max) * 100}%` }} />
+                <div className="absolute inset-y-0 bg-emerald-100" style={{ left: `${(messageBudget.min / messageBudget.max) * 100}%`, width: `${Math.max(0, 80 - (messageBudget.min / messageBudget.max) * 100)}%` }} />
+                <div className="absolute inset-y-0 bg-amber-100" style={{ left: '80%', width: '20%' }} />
+                <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-200" style={{ width: `${Math.min(100, (messageLen / messageBudget.max) * 100)}%`, background: messageZoneMeta.color }} />
+              </div>
+              <div className="flex items-center justify-between mt-1.5 text-[11px]">
+                <span className="text-gray-400">{t('Min', 'Min')} {messageBudget.min}</span>
+                <span className="font-bold flex items-center gap-1" style={{ color: messageZoneMeta.color }}>
+                  {messageZoneMeta.icon} {messageZoneMeta.label} · {messageLen}/{messageBudget.max}
+                </span>
+                <span className="text-gray-400">{t('Max', 'Max')} {messageBudget.max}</span>
+              </div>
+            </div>
+
             <button type="button" onClick={handleGenerateLyrics} disabled={lyricLoading} className="flex items-center gap-2 text-sm text-brand-600 font-bold mb-4 hover:text-brand-700">
               <Wand2 className="w-4 h-4" /> {lyricLoading ? t('Génération...', 'Generating...') : t('Générer des paroles avec l\'IA', 'Generate lyrics with AI')}
             </button>
             <p className="text-xs text-gray-400 mb-6">
-              {t('Minimum 10 caractères', 'Minimum 10 characters')} ({message.length}/10) · 💡 {t('Plus tu donnes de détails, plus ta chanson sera personnalisée !', 'The more detail you give, the more personalized your song will be!')}
+              💡 {t('Plus tu donnes de détails (dans la zone verte), plus ta chanson sera personnalisée !', 'The more detail you give (in the green zone), the more personalized your song will be!')}
             </p>
             <div className="flex gap-3">
               <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
-              <button onClick={goNext} disabled={message.length < 10} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
+              <button onClick={goNext} disabled={!messageValid} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0">
                 {t('Continuer', 'Continue')}
               </button>
             </div>

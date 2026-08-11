@@ -2,6 +2,13 @@ import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { finalizeIfReady } from '@/lib/song-processing';
+import { localizeProviderError } from '@/lib/providerErrors';
+
+async function withLocalizedError(gen: any, userId: string) {
+  if (gen?.status !== 'failed' || !gen.failure_reason) return gen;
+  const { data: creditRow } = await supabaseAdmin.from('user_credits').select('language').eq('user_id', userId).single();
+  return { ...gen, localized_error: localizeProviderError(gen.failure_reason, creditRow?.language || 'fr') };
+}
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   const supabase = createServerClientWithCookies();
@@ -28,10 +35,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       .select('*')
       .eq('id', params.id)
       .single();
-    return NextResponse.json(refreshed || gen);
+    return NextResponse.json(await withLocalizedError(refreshed || gen, user.id));
   }
 
-  return NextResponse.json(gen);
+  return NextResponse.json(await withLocalizedError(gen, user.id));
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

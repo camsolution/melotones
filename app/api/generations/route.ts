@@ -2,47 +2,12 @@ import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
-import { styleDescriptors } from '@/lib/styleDescriptors';
 import { autoRefund } from '@/lib/refunds';
+import { VOICE_LANGUAGE_NAMES, computeMessageBudget, buildPrompt } from '@/lib/promptBudget';
+import { logProviderError, localizeProviderError } from '@/lib/providerErrors';
 
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
-
-const VOICE_LANGUAGE_NAMES: Record<string, string> = { fr: 'French', en: 'English' };
-const PROMPT_MAX_LENGTH = 295; // MusicGPT rejette music_style au-delà de 300 caractères
-
-function truncateToWordBoundary(text: string, maxLength: number): string {
-  if (maxLength <= 0) return '';
-  if (text.length <= maxLength) return text;
-  const cut = text.slice(0, maxLength);
-  const lastSpace = cut.lastIndexOf(' ');
-  return (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trim();
-}
-
-// La clause de langue est obligatoire et ne doit jamais être coupée. Le style
-// musical prime ensuite sur le message libre pour la qualité du résultat : si le
-// prompt dépasse la limite de MusicGPT, on tronque d'abord le message, puis le
-// descriptif de style si ça ne suffit toujours pas.
-function buildPrompt(style: string, occasion: string, voiceLanguage: string, message: string): string {
-  const scaffold = (s: string, m: string) =>
-    `A ${s} song for ${occasion}, sung entirely in ${voiceLanguage}.${m ? ` About: ${m}` : ''}`;
-
-  let styleText = style;
-  let messageText = message;
-  let prompt = scaffold(styleText, messageText);
-
-  if (prompt.length > PROMPT_MAX_LENGTH) {
-    const overBy = prompt.length - PROMPT_MAX_LENGTH;
-    messageText = truncateToWordBoundary(messageText, messageText.length - overBy);
-    prompt = scaffold(styleText, messageText);
-  }
-  if (prompt.length > PROMPT_MAX_LENGTH) {
-    const overBy = prompt.length - PROMPT_MAX_LENGTH;
-    styleText = truncateToWordBoundary(styleText, styleText.length - overBy);
-    prompt = scaffold(styleText, messageText);
-  }
-  return prompt;
-}
 
 async function refundCredit(userId: string) {
   const { data: fresh } = await supabaseAdmin.from('user_credits').select('balance').eq('user_id', userId).single();
@@ -98,6 +63,20 @@ export async function POST(request: Request) {
 
   const isAdmin = creditRow.is_admin === true;
 
+  // La longueur autorisée pour le message dépend du style choisi (les descriptifs
+  // de style les plus détaillés laissent moins de place avant la limite de
+  // MusicGPT) — on bloque ici plutôt que de tronquer silencieusement, pour rester
+  // cohérent avec la jauge affichée à l'utilisateur au moment de la saisie.
+  const voiceLanguage = VOICE_LANGUAGE_NAMES[creditRow.language] || 'French';
+  const { min: minMessageLength, max: maxMessageLength } = computeMessageBudget(style, occasion, voiceLanguage);
+  if (String(custom_message).length < minMessageLength || String(custom_message).length > maxMessageLength) {
+    return NextResponse.json({
+      error: `Le message doit contenir entre ${minMessageLength} et ${maxMessageLength} caractères pour ce style.`,
+      min: minMessageLength,
+      max: maxMessageLength,
+    }, { status: 400 });
+  }
+
   if (!isAdmin) {
     if (creditRow.balance < 1) {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
@@ -129,13 +108,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
-    const enrichedStyle = styleDescriptors[styleKey] || style;
-    // La langue des voix suit obligatoirement la langue du profil de l'utilisateur
-    // (jamais un choix libre au moment de la génération) — c'est la seule façon de
-    // le garantir, l'API MusicGPT n'ayant pas de paramètre de langue dédié.
-    const voiceLanguage = VOICE_LANGUAGE_NAMES[creditRow.language] || 'French';
-    const prompt = buildPrompt(enrichedStyle, occasion, voiceLanguage, custom_message);
+    const prompt = buildPrompt(style, occasion, voiceLanguage, custom_message);
 
     const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
     const { predictionId } = await generateMusic(prompt, user.id, genderParam);
@@ -148,10 +121,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: generation.id, status: 'processing' });
   } catch (err: any) {
     console.error('Generation launch error:', err);
-    await supabaseAdmin.from('generations').update({ status: 'failed' }).eq('id', generation.id);
+    const rawMessage = err.message || 'Unknown provider error';
+    await supabaseAdmin.from('generations').update({ status: 'failed', failure_reason: rawMessage }).eq('id', generation.id);
+    // Toujours loggé (même pour un compte admin) pour que l'alerte remonte au
+    // dashboard admin, indépendamment du remboursement.
+    await logProviderError(generation.id, user.id, rawMessage);
     // Le fournisseur a rejeté/échoué la requête de lancement : c'est une panne
     // technique avérée (pas une simple lenteur), donc remboursement automatique.
-    if (!isAdmin) await autoRefund(generation.id, user.id, err.message || 'Échec du lancement de la génération chez le fournisseur');
-    return NextResponse.json({ error: err.message || 'AI generation failed' }, { status: 500 });
+    if (!isAdmin) await autoRefund(generation.id, user.id, rawMessage);
+    return NextResponse.json({ error: localizeProviderError(rawMessage, creditRow.language) }, { status: 500 });
   }
 }

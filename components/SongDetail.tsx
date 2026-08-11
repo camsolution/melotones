@@ -124,7 +124,7 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
           )}
         </>
       ) : song.status === 'failed' ? (
-        <p className="text-red-500">{t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>
+        <p className="text-red-500">{song.localized_error || t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>
       ) : (
         <div className="flex flex-col items-center py-10">
           <svg className="animate-spin h-12 w-12 text-brand-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

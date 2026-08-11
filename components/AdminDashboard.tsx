@@ -20,6 +20,11 @@ type RefundRequest = {
 type LiveStats = {
   onlineCount: number; processingGenerations: number; pendingPurchaseRequests: number;
   pendingRefundRequests: number; openChatConversations: number; revenueTodayFcfa: number; newSignupsToday: number;
+  unacknowledgedProviderErrors: number;
+};
+type ProviderError = {
+  id: string; generation_id: string | null; user_id: string; user_email?: string; provider: string; message: string;
+  created_at: string; acknowledged: boolean; generation: { occasion: string; style: string } | null;
 };
 
 const LIVE_POLL_MS = 5000;
@@ -33,7 +38,7 @@ type EmailCampaign = {
   headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing'] as const;
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -48,6 +53,7 @@ const TAB_LABELS: Record<Tab, string> = {
   refunds: 'Remboursements',
   messages: 'Messages',
   emailing: 'Emailing',
+  alerts: 'Alertes',
 };
 
 const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };
@@ -66,6 +72,7 @@ export default function AdminDashboard() {
   const [allCompletedGens, setAllCompletedGens] = useState<AdminGeneration[]>([]);
   const [newFeaturedId, setNewFeaturedId] = useState('');
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [providerErrors, setProviderErrors] = useState<ProviderError[]>([]);
   const [live, setLive] = useState<LiveStats | null>(null);
   const [chatConversations, setChatConversations] = useState<ChatConversation[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -83,7 +90,7 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
@@ -95,6 +102,7 @@ export default function AdminDashboard() {
       fetch('/api/admin/generations?status=completed'),
       fetch('/api/admin/refund-requests'),
       fetch('/api/admin/campaigns'),
+      fetch('/api/admin/provider-errors'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
@@ -107,6 +115,7 @@ export default function AdminDashboard() {
     if (allGenRes.ok) setAllCompletedGens(await allGenRes.json());
     if (refundsRes.ok) setRefunds(await refundsRes.json());
     if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
+    if (providerErrorsRes.ok) setProviderErrors(await providerErrorsRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -200,6 +209,13 @@ export default function AdminDashboard() {
     setSendingCampaignId(null);
     if (res.ok) { alert(`Envoyée à ${data.sentCount}/${data.recipientCount} destinataires.`); loadAll(); }
     else alert(data.error || 'Erreur envoi.');
+  };
+
+  const handleAcknowledgeError = async (id: string) => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/provider-errors/${id}`, { method: 'PATCH' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
   };
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
@@ -372,7 +388,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard Admin — Melotones</h1>
 
       {live && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
           <div className="card !p-3 text-center relative overflow-hidden">
             <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <p className="text-2xl font-bold text-green-600">{live.onlineCount}</p>
@@ -402,6 +418,10 @@ export default function AdminDashboard() {
             <p className="text-2xl font-bold text-gray-700">{live.newSignupsToday}</p>
             <p className="text-[11px] text-gray-500">Inscrits aujourd'hui</p>
           </div>
+          <div className="card !p-3 text-center">
+            <p className={`text-2xl font-bold ${live.unacknowledgedProviderErrors > 0 ? 'text-red-600' : 'text-gray-700'}`}>{live.unacknowledgedProviderErrors}</p>
+            <p className="text-[11px] text-gray-500">Alertes fournisseur</p>
+          </div>
         </div>
       )}
 
@@ -416,6 +436,7 @@ export default function AdminDashboard() {
             {t === 'requests' && pending.length > 0 ? ` (${pending.length})` : ''}
             {t === 'refunds' && pendingRefunds.length > 0 ? ` (${pendingRefunds.length})` : ''}
             {t === 'messages' && chatConversations.filter(c => c.status === 'escalated').length > 0 ? ` (${chatConversations.filter(c => c.status === 'escalated').length})` : ''}
+            {t === 'alerts' && providerErrors.filter(e => !e.acknowledged).length > 0 ? ` (${providerErrors.filter(e => !e.acknowledged).length})` : ''}
           </button>
         ))}
       </div>
@@ -873,6 +894,27 @@ export default function AdminDashboard() {
             ))}
             {campaigns.length === 0 && <p className="text-gray-500">Aucune campagne pour le moment.</p>}
           </div>
+        </div>
+      )}
+
+      {tab === 'alerts' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 mb-2">Pannes remontées automatiquement par le fournisseur de génération musicale — indépendant des remboursements.</p>
+          {providerErrors.map(e => (
+            <div key={e.id} className={`card flex flex-wrap items-start justify-between gap-3 ${e.acknowledged ? 'opacity-60' : ''}`}>
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-800">{e.user_email || e.user_id}{e.generation ? ` — ${e.generation.occasion} / ${e.generation.style}` : ''}</p>
+                <p className="text-sm text-gray-600 font-mono break-all">{e.message}</p>
+                <p className="text-xs text-gray-400">{new Date(e.created_at).toLocaleString('fr-FR')}</p>
+              </div>
+              {!e.acknowledged ? (
+                <button disabled={busyId === e.id} onClick={() => handleAcknowledgeError(e.id)} className="btn-secondary text-xs flex-none">Marquer comme vu</button>
+              ) : (
+                <span className="text-xs text-gray-400 flex-none">Vu</span>
+              )}
+            </div>
+          ))}
+          {providerErrors.length === 0 && <p className="text-gray-500">Aucune alerte pour le moment.</p>}
         </div>
       )}
     </div>

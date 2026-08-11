@@ -9,6 +9,8 @@ export type Generation = {
   is_public: boolean;
   cover_url?: string | null;
   created_at: string;
+  failure_reason?: string | null;
+  localized_error?: string;
 };
 
 export type ExampleSong = {
