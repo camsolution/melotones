@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 
-  const { subject, body_html, audience } = await request.json();
+  const { subject, body_html, audience, headline, cta_label, cta_url, promo_code } = await request.json();
   if (!subject?.trim() || !body_html?.trim()) {
     return NextResponse.json({ error: 'Sujet et contenu requis' }, { status: 400 });
   }
@@ -30,7 +30,11 @@ export async function POST(request: Request) {
 
   const { data, error: dbError } = await supabaseAdmin
     .from('email_campaigns')
-    .insert({ subject: subject.trim(), body_html, audience, status: 'draft' })
+    .insert({
+      subject: subject.trim(), body_html, audience, status: 'draft',
+      headline: headline?.trim() || null, cta_label: cta_label?.trim() || null,
+      cta_url: cta_url?.trim() || null, promo_code: promo_code?.trim() || null,
+    })
     .select()
     .single();
 

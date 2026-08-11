@@ -1,23 +1,33 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
-import { sendEmail, unsubscribeUrl, isEmailConfigured } from '@/lib/email';
+import { sendEmail, unsubscribeUrl, isEmailConfigured, renderCampaignEmail } from '@/lib/email';
 
-async function listAllUserEmails(): Promise<{ id: string; email: string }[]> {
-  const users: { id: string; email: string }[] = [];
+type Recipient = { id: string; email: string; firstName: string | null };
+
+function extractFirstName(fullName?: string | null): string | null {
+  if (!fullName) return null;
+  const first = fullName.trim().split(/\s+/)[0];
+  return first ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : null;
+}
+
+async function listAllUsers(): Promise<Recipient[]> {
+  const users: Recipient[] = [];
   let page = 1;
   const perPage = 1000;
   while (true) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
     if (error || !data) break;
-    for (const u of data.users) if (u.email) users.push({ id: u.id, email: u.email });
+    for (const u of data.users) {
+      if (u.email) users.push({ id: u.id, email: u.email, firstName: extractFirstName(u.user_metadata?.full_name || u.user_metadata?.name) });
+    }
     if (data.users.length < perPage) break;
     page++;
   }
   return users;
 }
 
-async function resolveAudience(audience: string): Promise<{ id: string; email: string }[]> {
-  const allUsers = await listAllUserEmails();
+async function resolveAudience(audience: string): Promise<Recipient[]> {
+  const allUsers = await listAllUsers();
   if (audience === 'all') return allUsers;
 
   const { data: gens } = await supabaseAdmin.from('generations').select('user_id');
@@ -34,13 +44,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Emailing non configuré : ajoutez RESEND_API_KEY et RESEND_FROM_EMAIL dans les variables d'environnement Vercel." }, { status: 503 });
   }
 
-  // Compare-and-swap : ne démarre l'envoi que si la campagne est encore un brouillon,
-  // pour qu'un double-clic ne déclenche pas deux envois à toute la liste.
+  // Compare-and-swap : ne démarre l'envoi que si la campagne est encore un brouillon
+  // (ou a échoué et peut être relancée), pour qu'un double-clic ne déclenche pas
+  // deux envois à toute la liste.
   const { data: campaign, error: casError } = await supabaseAdmin
     .from('email_campaigns')
     .update({ status: 'sending' })
     .eq('id', params.id)
-    .eq('status', 'draft')
+    .in('status', ['draft', 'failed'])
     .select()
     .single();
 
@@ -55,16 +66,37 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const recipients = (await resolveAudience(campaign.audience)).filter((u) => !unsubscribed.has(u.id));
 
   let sentCount = 0;
+  let lastError: string | null = null;
   for (const recipient of recipients) {
-    const footer = `<hr style="margin-top:32px;border:none;border-top:1px solid #e5e7eb"><p style="font-size:12px;color:#9ca3af">Melotones — <a href="${unsubscribeUrl(recipient.id, baseUrl)}" style="color:#9ca3af">Se désinscrire</a></p>`;
-    const { ok } = await sendEmail(recipient.email, campaign.subject, campaign.body_html + footer);
+    const html = renderCampaignEmail({
+      firstName: recipient.firstName,
+      headline: campaign.headline,
+      bodyHtml: campaign.body_html,
+      ctaLabel: campaign.cta_label,
+      ctaUrl: campaign.cta_url,
+      promoCode: campaign.promo_code,
+      unsubscribeLink: unsubscribeUrl(recipient.id, baseUrl),
+    });
+    const { ok, error: sendError } = await sendEmail(recipient.email, campaign.subject, html);
     if (ok) sentCount++;
+    else lastError = sendError || lastError;
   }
+
+  // Si personne n'a effectivement reçu l'email alors qu'il y avait des destinataires,
+  // c'est un échec réel (ex. domaine d'envoi non vérifié chez Resend) — on ne le
+  // maquille pas en "envoyée", et on garde le message d'erreur pour diagnostic.
+  const allFailed = recipients.length > 0 && sentCount === 0;
 
   await supabaseAdmin
     .from('email_campaigns')
-    .update({ status: 'sent', recipient_count: recipients.length, sent_count: sentCount, sent_at: new Date().toISOString() })
+    .update({
+      status: allFailed ? 'failed' : 'sent',
+      recipient_count: recipients.length,
+      sent_count: sentCount,
+      sent_at: new Date().toISOString(),
+      error_message: allFailed ? lastError : null,
+    })
     .eq('id', params.id);
 
-  return NextResponse.json({ recipientCount: recipients.length, sentCount });
+  return NextResponse.json({ recipientCount: recipients.length, sentCount, error: allFailed ? lastError : undefined });
 }

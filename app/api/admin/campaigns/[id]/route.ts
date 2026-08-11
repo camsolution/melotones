@@ -10,6 +10,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (typeof body.subject === 'string') patch.subject = body.subject.trim();
   if (typeof body.body_html === 'string') patch.body_html = body.body_html;
   if (typeof body.audience === 'string' && ['all', 'active', 'inactive'].includes(body.audience)) patch.audience = body.audience;
+  if (typeof body.headline === 'string') patch.headline = body.headline.trim() || null;
+  if (typeof body.cta_label === 'string') patch.cta_label = body.cta_label.trim() || null;
+  if (typeof body.cta_url === 'string') patch.cta_url = body.cta_url.trim() || null;
+  if (typeof body.promo_code === 'string') patch.promo_code = body.promo_code.trim() || null;
 
   const { data, error: dbError } = await supabaseAdmin
     .from('email_campaigns')

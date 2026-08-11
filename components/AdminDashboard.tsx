@@ -15,7 +15,7 @@ type Ad = { id: string; advertiser_name: string; media_url: string; media_type: 
 type FeaturedSong = { id: string; generation_id: string; active: boolean; generation: { id: string; occasion: string; style: string; status: string } | null };
 type RefundRequest = {
   id: string; generation_id: string; user_id: string; user_email?: string; credits: number; reason: string | null;
-  status: string; created_at: string; generation: { occasion: string; style: string; status: string } | null;
+  status: string; created_at: string; reviewed_by: string | null; generation: { occasion: string; style: string; status: string } | null;
 };
 type LiveStats = {
   onlineCount: number; processingGenerations: number; pendingPurchaseRequests: number;
@@ -30,6 +30,7 @@ type ChatMessage = { id: string; sender: string; content: string; created_at: st
 type EmailCampaign = {
   id: string; subject: string; body_html: string; status: string; audience: string;
   recipient_count: number | null; sent_count: number; created_at: string; sent_at: string | null;
+  headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
 const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing'] as const;
@@ -72,7 +73,7 @@ export default function AdminDashboard() {
   const [chatReply, setChatReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
-  const [newCampaign, setNewCampaign] = useState({ subject: '', body_html: '', audience: 'all' });
+  const [newCampaign, setNewCampaign] = useState({ subject: '', body_html: '', audience: 'all', headline: '', cta_label: '', cta_url: '', promo_code: '' });
   const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -179,7 +180,7 @@ export default function AdminDashboard() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCampaign),
     });
     setBusyId(null);
-    if (res.ok) { setNewCampaign({ subject: '', body_html: '', audience: 'all' }); loadAll(); }
+    if (res.ok) { setNewCampaign({ subject: '', body_html: '', audience: 'all', headline: '', cta_label: '', cta_url: '', promo_code: '' }); loadAll(); }
     else { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur création campagne.'); }
   };
 
@@ -707,11 +708,16 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-bold mb-4 text-gray-800">Historique</h2>
           <div className="space-y-2">
             {processedRefunds.map(r => (
-              <div key={r.id} className="flex items-center justify-between text-sm text-gray-600 border-b border-gray-100 py-2">
-                <span>{r.user_email || r.user_id} — {r.credits} note{r.credits > 1 ? 's' : ''}{r.generation ? ` — ${r.generation.occasion} / ${r.generation.style}` : ''}</span>
-                <span className={r.status === 'approved' ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
-                  {r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
-                </span>
+              <div key={r.id} className="flex items-center justify-between text-sm text-gray-600 border-b border-gray-100 py-2 gap-3">
+                <span className="min-w-0 truncate">{r.user_email || r.user_id} — {r.credits} note{r.credits > 1 ? 's' : ''}{r.generation ? ` — ${r.generation.occasion} / ${r.generation.style}` : ''}</span>
+                <div className="flex items-center gap-2 flex-none">
+                  {r.status === 'approved' && !r.reviewed_by && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Automatique</span>
+                  )}
+                  <span className={r.status === 'approved' ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                    {r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
+                  </span>
+                </div>
               </div>
             ))}
             {processedRefunds.length === 0 && <p className="text-gray-400 text-sm">Aucun historique.</p>}
@@ -795,13 +801,39 @@ export default function AdminDashboard() {
                 onChange={e => setNewCampaign(c => ({ ...c, subject: e.target.value }))}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               />
+              <input
+                placeholder="Accroche (optionnel, ex. « Idée cadeau »)"
+                value={newCampaign.headline}
+                onChange={e => setNewCampaign(c => ({ ...c, headline: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              />
               <textarea
-                placeholder="Contenu (HTML autorisé)…"
+                placeholder="Message (le texte après « Bonjour {Prénom}, » — HTML simple autorisé, ex. <p>...</p>)…"
                 value={newCampaign.body_html}
                 onChange={e => setNewCampaign(c => ({ ...c, body_html: e.target.value }))}
                 rows={6}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
               />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input
+                  placeholder="Code promo (optionnel)"
+                  value={newCampaign.promo_code}
+                  onChange={e => setNewCampaign(c => ({ ...c, promo_code: e.target.value.toUpperCase() }))}
+                  className="border border-gray-300 rounded px-3 py-2 text-sm uppercase"
+                />
+                <input
+                  placeholder="Texte du bouton (défaut : Créer ma chanson)"
+                  value={newCampaign.cta_label}
+                  onChange={e => setNewCampaign(c => ({ ...c, cta_label: e.target.value }))}
+                  className="border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+                <input
+                  placeholder="Lien du bouton (défaut : /create)"
+                  value={newCampaign.cta_url}
+                  onChange={e => setNewCampaign(c => ({ ...c, cta_url: e.target.value }))}
+                  className="border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
               <div className="flex flex-wrap gap-3 items-center">
                 <select value={newCampaign.audience} onChange={e => setNewCampaign(c => ({ ...c, audience: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm">
                   {Object.entries(AUDIENCE_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
@@ -819,18 +851,21 @@ export default function AdminDashboard() {
                     <p className="font-semibold text-gray-800">{c.subject}</p>
                     <p className="text-xs text-gray-500">{AUDIENCE_LABELS[c.audience]} · {new Date(c.created_at).toLocaleString('fr-FR')}</p>
                     {c.status === 'sent' && <p className="text-xs text-green-600 mt-1">Envoyée à {c.sent_count}/{c.recipient_count} destinataires le {c.sent_at && new Date(c.sent_at).toLocaleString('fr-FR')}</p>}
+                    {c.status === 'failed' && (
+                      <p className="text-xs text-red-600 mt-1">Échec de l'envoi ({c.recipient_count} destinataires visés, 0 livré){c.error_message ? ` — ${c.error_message}` : ''}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-none">
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      c.status === 'sent' ? 'bg-green-100 text-green-700' : c.status === 'sending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
-                    }`}>{c.status === 'sent' ? 'Envoyée' : c.status === 'sending' ? 'Envoi en cours' : 'Brouillon'}</span>
+                      c.status === 'sent' ? 'bg-green-100 text-green-700' : c.status === 'sending' ? 'bg-orange-100 text-orange-700' : c.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{c.status === 'sent' ? 'Envoyée' : c.status === 'sending' ? 'Envoi en cours' : c.status === 'failed' ? 'Échouée' : 'Brouillon'}</span>
+                    {(c.status === 'draft' || c.status === 'failed') && (
+                      <button disabled={sendingCampaignId === c.id} onClick={() => handleSendCampaign(c)} className="btn-primary text-xs">
+                        {sendingCampaignId === c.id ? 'Envoi…' : c.status === 'failed' ? 'Réessayer' : 'Envoyer'}
+                      </button>
+                    )}
                     {c.status === 'draft' && (
-                      <>
-                        <button disabled={sendingCampaignId === c.id} onClick={() => handleSendCampaign(c)} className="btn-primary text-xs">
-                          {sendingCampaignId === c.id ? 'Envoi…' : 'Envoyer'}
-                        </button>
-                        <button disabled={busyId === c.id} onClick={() => handleDeleteCampaign(c.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
-                      </>
+                      <button disabled={busyId === c.id} onClick={() => handleDeleteCampaign(c.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
                     )}
                   </div>
                 </div>
