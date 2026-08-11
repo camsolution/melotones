@@ -8,6 +8,8 @@ import { autoRefund } from '@/lib/refunds';
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
 
+const VOICE_LANGUAGE_NAMES: Record<string, string> = { fr: 'French', en: 'English' };
+
 async function refundCredit(userId: string) {
   const { data: fresh } = await supabaseAdmin.from('user_credits').select('balance').eq('user_id', userId).single();
   if (fresh) {
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
 
   let { data: creditRow, error: creditError } = await supabaseAdmin
     .from('user_credits')
-    .select('balance, is_admin')
+    .select('balance, is_admin, language')
     .eq('user_id', user.id)
     .single();
 
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
       .from('user_credits')
       .insert({ user_id: user.id, balance: 3 });
     if (insertError) return NextResponse.json({ error: 'Failed to initialize credits' }, { status: 500 });
-    creditRow = { balance: 3, is_admin: false };
+    creditRow = { balance: 3, is_admin: false, language: 'fr' };
   }
 
   const isAdmin = creditRow.is_admin === true;
@@ -95,7 +97,11 @@ export async function POST(request: Request) {
   try {
     const styleKey = style.toLowerCase().replace(/[^a-z]/g, '');
     const enrichedStyle = styleDescriptors[styleKey] || style;
-    const prompt = `A ${enrichedStyle} song for ${occasion}, about: ${custom_message}`;
+    // La langue des voix suit obligatoirement la langue du profil de l'utilisateur
+    // (jamais un choix libre au moment de la génération) — c'est la seule façon de
+    // le garantir, l'API MusicGPT n'ayant pas de paramètre de langue dédié.
+    const voiceLanguage = VOICE_LANGUAGE_NAMES[creditRow.language] || 'French';
+    const prompt = `A ${enrichedStyle} song for ${occasion}, sung entirely in ${voiceLanguage}. About: ${custom_message}`;
 
     const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
     const { predictionId } = await generateMusic(prompt, user.id, genderParam);
