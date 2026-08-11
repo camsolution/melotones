@@ -9,8 +9,11 @@ type Stats = { totalUsers: number; totalGenerations: number; pendingRequests: nu
 type AdminUser = { id: string; email: string; created_at: string; last_sign_in_at: string | null; balance: number; is_admin: boolean; generations_count: number };
 type AdminGeneration = { id: string; user_email: string; occasion: string; style: string; status: string; created_at: string };
 type PricingPack = { id: string; credits: number; price_fcfa: number; label: string; active: boolean; sort_order: number };
+type Coupon = { id: string; code: string; partner_id: string; discount_percent: number; quota: number | null; used_count: number; active: boolean };
+type Partner = { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; active: boolean; coupons: Coupon[] };
+type Ad = { id: string; advertiser_name: string; media_url: string; media_type: 'image' | 'video'; target_url: string | null; active: boolean; sort_order: number };
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing'] as const;
+const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -19,6 +22,8 @@ const TAB_LABELS: Record<Tab, string> = {
   users: 'Utilisateurs',
   generations: 'Chansons',
   pricing: 'Tarifs',
+  partners: 'Partenaires',
+  ads: 'Publicité',
 };
 
 export default function AdminDashboard() {
@@ -29,23 +34,32 @@ export default function AdminDashboard() {
   const [generations, setGenerations] = useState<AdminGeneration[]>([]);
   const [genFilter, setGenFilter] = useState('all');
   const [pricing, setPricing] = useState<PricingPack[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
+  const [newCoupon, setNewCoupon] = useState<Record<string, { code: string; discount_percent: string; quota: string }>>({});
+  const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes] = await Promise.all([
+    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
       fetch(`/api/admin/generations?status=${genFilter}`),
       fetch('/api/admin/pricing'),
+      fetch('/api/admin/partners'),
+      fetch('/api/admin/ads'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
     if (usersRes.ok) setUsers(await usersRes.json());
     if (genRes.ok) setGenerations(await genRes.json());
     if (priceRes.ok) setPricing(await priceRes.json());
+    if (partnersRes.ok) setPartners(await partnersRes.json());
+    if (adsRes.ok) setAds(await adsRes.json());
     setLoading(false);
   }, [genFilter]);
 
@@ -93,6 +107,86 @@ export default function AdminDashboard() {
     });
     setBusyId(null);
     if (res.ok) loadAll(); else alert('Erreur mise à jour tarif.');
+  };
+
+  const handleCreatePartner = async () => {
+    if (!newPartner.name.trim()) return;
+    setBusyId('new-partner');
+    const res = await fetch('/api/admin/partners', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPartner),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewPartner({ name: '', contact_email: '', contact_phone: '' }); loadAll(); } else alert('Erreur création partenaire.');
+  };
+
+  const handleDeletePartner = async (id: string) => {
+    if (!confirm('Supprimer ce partenaire et ses coupons ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/partners/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur suppression.');
+  };
+
+  const handleCreateCoupon = async (partnerId: string) => {
+    const form = newCoupon[partnerId];
+    if (!form?.code || !form?.discount_percent) return;
+    setBusyId('new-coupon-' + partnerId);
+    const res = await fetch('/api/admin/coupons', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: form.code, partner_id: partnerId,
+        discount_percent: Number(form.discount_percent),
+        quota: form.quota ? Number(form.quota) : null,
+      }),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewCoupon(prev => ({ ...prev, [partnerId]: { code: '', discount_percent: '', quota: '' } })); loadAll(); }
+    else { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur création coupon.'); }
+  };
+
+  const handleToggleCoupon = async (id: string, current: boolean) => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/coupons/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !current }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!confirm('Supprimer ce coupon ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/coupons/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleCreateAd = async () => {
+    if (!newAd.advertiser_name.trim() || !newAd.media_url.trim()) return;
+    setBusyId('new-ad');
+    const res = await fetch('/api/admin/ads', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newAd),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewAd({ advertiser_name: '', media_url: '', media_type: 'image', target_url: '' }); loadAll(); }
+    else alert('Erreur création publicité.');
+  };
+
+  const handleToggleAd = async (id: string, current: boolean) => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/ads/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !current }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleDeleteAd = async (id: string) => {
+    if (!confirm('Supprimer cette publicité ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/ads/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
   };
 
   const pending = requests.filter(r => r.status === 'pending');
@@ -245,6 +339,98 @@ export default function AdminDashboard() {
             </div>
           ))}
           <p className="text-xs text-gray-400 mt-2">Modifie une valeur puis clique en dehors du champ pour l'enregistrer.</p>
+        </div>
+      )}
+
+      {tab === 'partners' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h2 className="text-lg font-bold mb-4 text-gray-800">Nouveau partenaire</h2>
+            <div className="flex flex-wrap gap-3">
+              <input placeholder="Nom" value={newPartner.name} onChange={e => setNewPartner(p => ({ ...p, name: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[160px]" />
+              <input placeholder="Email de contact" value={newPartner.contact_email} onChange={e => setNewPartner(p => ({ ...p, contact_email: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[160px]" />
+              <input placeholder="Téléphone" value={newPartner.contact_phone} onChange={e => setNewPartner(p => ({ ...p, contact_phone: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[140px]" />
+              <button disabled={busyId === 'new-partner'} onClick={handleCreatePartner} className="btn-primary text-sm">Ajouter</button>
+            </div>
+          </div>
+
+          {partners.map(p => (
+            <div key={p.id} className="card">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="font-bold text-gray-800">{p.name}</h3>
+                  <p className="text-xs text-gray-500">{p.contact_email} {p.contact_phone && `· ${p.contact_phone}`}</p>
+                </div>
+                <div className="flex gap-2">
+                  <a href={`/api/admin/partners/${p.id}/report`} className="btn-secondary text-xs">Télécharger le rapport CSV</a>
+                  <button disabled={busyId === p.id} onClick={() => handleDeletePartner(p.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {p.coupons.map(c => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                    <span className="font-mono font-semibold text-brand-700">{c.code}</span>
+                    <span className="text-gray-600">-{c.discount_percent}%</span>
+                    <span className="text-gray-500">{c.used_count}{c.quota !== null ? ` / ${c.quota}` : ''} utilisations</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleToggleCoupon(c.id, c.active)} className={`text-xs px-2 py-1 rounded-full ${c.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                        {c.active ? 'Actif' : 'Désactivé'}
+                      </button>
+                      <button onClick={() => handleDeleteCoupon(c.id)} className="text-xs text-red-400 hover:text-red-600">Suppr.</button>
+                    </div>
+                  </div>
+                ))}
+                {p.coupons.length === 0 && <p className="text-xs text-gray-400">Aucun coupon pour ce partenaire.</p>}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center border-t border-gray-100 pt-3">
+                <input placeholder="CODE" value={newCoupon[p.id]?.code || ''} onChange={e => setNewCoupon(prev => ({ ...prev, [p.id]: { ...prev[p.id], code: e.target.value.toUpperCase(), discount_percent: prev[p.id]?.discount_percent || '', quota: prev[p.id]?.quota || '' } }))} className="border border-gray-300 rounded px-2 py-1.5 text-sm w-32 uppercase" />
+                <input type="number" placeholder="% remise" value={newCoupon[p.id]?.discount_percent || ''} onChange={e => setNewCoupon(prev => ({ ...prev, [p.id]: { ...prev[p.id], code: prev[p.id]?.code || '', discount_percent: e.target.value, quota: prev[p.id]?.quota || '' } }))} className="border border-gray-300 rounded px-2 py-1.5 text-sm w-24" />
+                <input type="number" placeholder="Quota (vide=illimité)" value={newCoupon[p.id]?.quota || ''} onChange={e => setNewCoupon(prev => ({ ...prev, [p.id]: { ...prev[p.id], code: prev[p.id]?.code || '', discount_percent: prev[p.id]?.discount_percent || '', quota: e.target.value } }))} className="border border-gray-300 rounded px-2 py-1.5 text-sm w-40" />
+                <button disabled={busyId === 'new-coupon-' + p.id} onClick={() => handleCreateCoupon(p.id)} className="btn-secondary text-xs">Créer un coupon</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'ads' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h2 className="text-lg font-bold mb-4 text-gray-800">Nouvelle publicité</h2>
+            <div className="flex flex-wrap gap-3">
+              <input placeholder="Nom de l'annonceur" value={newAd.advertiser_name} onChange={e => setNewAd(a => ({ ...a, advertiser_name: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[160px]" />
+              <input placeholder="URL du média (image ou vidéo)" value={newAd.media_url} onChange={e => setNewAd(a => ({ ...a, media_url: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[220px]" />
+              <select value={newAd.media_type} onChange={e => setNewAd(a => ({ ...a, media_type: e.target.value as 'image' | 'video' }))} className="border border-gray-300 rounded px-3 py-2 text-sm">
+                <option value="image">Image</option>
+                <option value="video">Vidéo</option>
+              </select>
+              <input placeholder="Lien de destination (optionnel)" value={newAd.target_url} onChange={e => setNewAd(a => ({ ...a, target_url: e.target.value }))} className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[180px]" />
+              <button disabled={busyId === 'new-ad'} onClick={handleCreateAd} className="btn-primary text-sm">Ajouter</button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {ads.map(ad => (
+              <div key={ad.id} className="card flex flex-wrap items-center gap-4">
+                {ad.media_type === 'image' ? (
+                  <img src={ad.media_url} alt="" className="w-20 h-14 object-cover rounded-lg flex-none" />
+                ) : (
+                  <video src={ad.media_url} muted className="w-20 h-14 object-cover rounded-lg flex-none" />
+                )}
+                <div className="flex-1 min-w-[160px]">
+                  <p className="font-semibold text-gray-800">{ad.advertiser_name}</p>
+                  <p className="text-xs text-gray-500">{ad.media_type} {ad.target_url && `· ${ad.target_url}`}</p>
+                </div>
+                <button onClick={() => handleToggleAd(ad.id, ad.active)} className={`text-xs px-3 py-1 rounded-full ${ad.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {ad.active ? 'Actif' : 'Désactivé'}
+                </button>
+                <button disabled={busyId === ad.id} onClick={() => handleDeleteAd(ad.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+              </div>
+            ))}
+            {ads.length === 0 && <p className="text-gray-500">Aucune publicité pour le moment.</p>}
+          </div>
         </div>
       )}
     </div>

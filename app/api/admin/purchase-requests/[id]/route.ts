@@ -35,6 +35,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (updateCreditError) {
       return NextResponse.json({ error: updateCreditError.message }, { status: 500 });
     }
+
+    if (req.coupon_id) {
+      const { data: coupon } = await supabaseAdmin.from('coupons').select('used_count').eq('id', req.coupon_id).single();
+      if (coupon) {
+        await supabaseAdmin.from('coupons').update({ used_count: coupon.used_count + 1 }).eq('id', req.coupon_id);
+      }
+    }
   }
 
   const { data: updated, error: updateError } = await supabaseAdmin

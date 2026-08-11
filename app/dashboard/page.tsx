@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Generation } from '@/types';
 import { styleMeta } from '@/lib/styleMeta';
 import { styleTranslations } from '@/lib/listTranslations';
+import AdSlot from '@/components/AdSlot';
 
 const QUICK_STYLES = ['Afrobeat', 'Amapiano', 'RnB', 'Reggae', 'Cabo'];
 
@@ -210,6 +211,8 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      <AdSlot />
     </div>
   );
 }
