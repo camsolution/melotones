@@ -9,6 +9,7 @@ import {
   Globe, LogOut, Menu, X, Headphones,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 type NavItem = {
   href: string;
@@ -40,7 +41,7 @@ export default function Sidebar({ session: initialSession }: { session: Session 
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -112,20 +113,6 @@ export default function Sidebar({ session: initialSession }: { session: Session 
       </nav>
 
       <div className="mt-auto flex flex-col gap-3">
-        <div className="flex bg-white/5 border border-stage-border rounded-full p-[3px] gap-0.5">
-          {(['fr', 'en'] as const).map(l => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`flex-1 text-[11.5px] font-extrabold tracking-wide py-1.5 rounded-full transition-colors ${
-                lang === l ? 'bg-white/10 text-white' : 'text-stage-muted'
-              }`}
-            >
-              {l.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
         {session && (
           <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[.045] border border-stage-border">
             <div className="w-9 h-9 rounded-[11px] flex-none flex items-center justify-center font-display font-bold text-[14px] text-white bg-gradient-to-br from-magenta-500 to-violet-500">
@@ -161,9 +148,12 @@ export default function Sidebar({ session: initialSession }: { session: Session 
           </div>
           <span className="font-display font-bold text-[15px] text-white">Melotones</span>
         </Link>
-        <button onClick={() => setMobileOpen(o => !o)} className="p-2 text-stage-text">
-          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <button onClick={() => setMobileOpen(o => !o)} className="p-2 text-stage-text">
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">

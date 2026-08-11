@@ -4,8 +4,9 @@ import { Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import { Menu, X, Music, Globe } from 'lucide-react';
+import { Menu, X, Music } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function Navbar({ session: initialSession }: { session: Session | null }) {
   const [session, setSession] = useState(initialSession);
@@ -14,7 +15,7 @@ export default function Navbar({ session: initialSession }: { session: Session |
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   const inAdminArea = pathname?.startsWith('/admin');
 
@@ -37,7 +38,6 @@ export default function Navbar({ session: initialSession }: { session: Session |
   };
 
   const closeMobile = () => setMobileOpen(false);
-  const toggleLang = () => setLang(lang === 'fr' ? 'en' : 'fr');
 
   return (
     <nav className="sticky top-0 z-50 glass-nav">
@@ -73,16 +73,11 @@ export default function Navbar({ session: initialSession }: { session: Session |
               )}
             </>
           )}
-          <button onClick={toggleLang} className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-brand-600 transition-colors ml-4" title={t('Passer en anglais', 'Switch to French')}>
-            <Globe className="w-4 h-4" />
-            {lang === 'fr' ? 'FR' : 'EN'}
-          </button>
+          <LanguageSwitcher className="ml-4" />
         </div>
 
         <div className="md:hidden flex items-center gap-2">
-          <button onClick={toggleLang} className="p-2 text-gray-600">
-            <Globe className="w-5 h-5" />
-          </button>
+          <LanguageSwitcher />
           <button className="p-2 text-gray-600" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

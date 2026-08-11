@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Headphones, Mail, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Turnstile from '@/components/Turnstile';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const CAPTCHA_ENABLED = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -19,7 +20,7 @@ function GoogleIcon() {
 }
 
 export default function AuthForm() {
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
   const [error, setError] = useState('');
@@ -58,22 +59,9 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 py-10">
+    <div className="min-h-[85vh] flex items-center justify-center px-4 py-10 relative">
+      <LanguageSwitcher className="absolute top-5 right-5" />
       <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-6">
-          <div className="flex bg-gray-100 rounded-full p-1 gap-1">
-            {(['fr', 'en'] as const).map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${lang === l ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
-              >
-                <span aria-hidden>{l === 'fr' ? '🇫🇷' : '🇺🇸'}</span> {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-8 text-center">
           <div className="flex flex-col items-center mb-6">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-brand-500 via-magenta-500 to-amber-400">
