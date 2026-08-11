@@ -7,6 +7,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { occasionTranslations, styleTranslations } from '@/lib/listTranslations';
 import { styleMeta } from '@/lib/styleMeta';
 import { occasionMeta } from '@/lib/occasionMeta';
+import { Pack } from '@/lib/pricing';
+
+const genderMeta: Record<Gender, { emoji: string; fr: string; en: string }> = {
+  male: { emoji: '👨', fr: 'Homme', en: 'Male' },
+  female: { emoji: '👩', fr: 'Femme', en: 'Female' },
+  duet: { emoji: '👫', fr: 'Duo', en: 'Duet' },
+};
 
 const occasions = Object.keys(occasionTranslations);
 const styles = Object.keys(styleTranslations);
@@ -27,6 +34,7 @@ export default function CreateForm() {
   const [balance, setBalance] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [lyricLoading, setLyricLoading] = useState(false);
+  const [packs, setPacks] = useState<Pack[]>([]);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +50,12 @@ export default function CreateForm() {
     const preselected = searchParams.get('style');
     if (preselected && styles.includes(preselected)) setStyle(preselected);
   }, []);
+
+  useEffect(() => {
+    if (balance !== null && balance < 1 && packs.length === 0) {
+      fetch('/api/pricing').then(r => r.json()).then(setPacks).catch(() => {});
+    }
+  }, [balance]);
 
   const getOccasionLabel = (key: string) => occasionTranslations[key]?.[lang] ?? key;
   const getStyleLabel = (key: string) => styleTranslations[key]?.[lang] ?? key;
@@ -226,16 +240,41 @@ export default function CreateForm() {
               ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
               : t('Prêt à créer ta chanson', 'Ready to create your song')}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-center">
-            <div className="p-4 rounded-xl bg-gray-50"><p className="text-2xl mb-1">🎵</p><p className="text-xs text-gray-600">{t('Chanson unique', 'Unique song')}</p></div>
-            <div className="p-4 rounded-xl bg-gray-50"><p className="text-2xl mb-1">💝</p><p className="text-xs text-gray-600">{t('Cadeau inoubliable', 'Unforgettable gift')}</p></div>
-            <div className="p-4 rounded-xl bg-gray-50"><p className="text-2xl mb-1">♾️</p><p className="text-xs text-gray-600">{t('Partage illimité', 'Unlimited sharing')}</p></div>
+          <div className="grid grid-cols-3 gap-3 mb-6 text-center">
+            <div className="p-4 rounded-xl bg-gray-50">
+              <p className="text-2xl mb-1">{occasion ? occasionMeta[occasion] : '🎉'}</p>
+              <p className="text-xs font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-gray-50">
+              <p className="text-2xl mb-1">{style ? styleMeta[style]?.emoji ?? '🎵' : '🎵'}</p>
+              <p className="text-xs font-semibold text-gray-700 capitalize">{style ? getStyleLabel(style) : ''}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-gray-50">
+              <p className="text-2xl mb-1">{gender ? genderMeta[gender].emoji : '🎤'}</p>
+              <p className="text-xs font-semibold text-gray-700">{gender ? t(genderMeta[gender].fr, genderMeta[gender].en) : ''}</p>
+            </div>
           </div>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+
+          {balance !== null && balance < 1 && (
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2">{t('Nos offres de Notes', 'Our Notes packs')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {packs.map(pack => (
+                  <a key={pack.id} href="/notes" className="rounded-xl border-2 border-gray-200 hover:border-brand-300 p-3 text-center transition-colors">
+                    <p className="text-lg font-bold text-brand-600">{pack.credits} {t('Notes', 'Notes')}</p>
+                    <p className="text-[11px] text-gray-500 mb-1">{pack.label}</p>
+                    <p className="text-sm font-semibold text-gray-800">{pack.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button onClick={goBack} className="btn-secondary px-4"><ChevronLeft className="w-5 h-5" /></button>
             {balance !== null && balance < 1 ? (
-              <a href="/dashboard" className="btn-primary flex-1 text-center">{t('Acheter des Notes', 'Buy Notes')}</a>
+              <a href="/notes" className="btn-primary flex-1 text-center">{t('Acheter des Notes', 'Buy Notes')}</a>
             ) : (
               <button onClick={handleSubmit} disabled={status === 'generating'} className="btn-primary flex-1 flex items-center justify-center gap-2">
                 {status === 'generating' ? (
