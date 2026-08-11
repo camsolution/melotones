@@ -12,7 +12,7 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
   const [refreshing, setRefreshing] = useState(false);
   const pollCount = useRef(0);
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const shareText = `${t('Écoutez ma chanson générée par IA sur Melotones !', 'Listen to my AI-generated song on Melotones!')} ${song.occasion} · ${song.style}`;
+  const shareText = `${t('Écoutez ma chanson générée par IA sur IziMelo !', 'Listen to my AI-generated song on IziMelo!')} ${song.occasion} · ${song.style}`;
 
   const fetchLatest = async () => {
     const res = await fetch(`/api/generations/${song.id}`);
@@ -65,7 +65,7 @@ export default function SongDetail({ song: initialSong }: { song: Generation }) 
           <audio controls src={song.audio_url} className="w-full mb-6 rounded-lg" />
           <div className="flex flex-wrap justify-center gap-3">
             <a href={song.audio_url} download className="btn-primary flex items-center gap-2"><Download className="w-4 h-4" /> {t('Télécharger MP3', 'Download MP3')}</a>
-            <button onClick={() => { if (navigator.share) navigator.share({ title: 'Melotones', text: shareText, url: shareUrl }); else { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } }} className="btn-secondary flex items-center gap-2"><Share2 className="w-4 h-4" /> {t('Partager', 'Share')}</button>
+            <button onClick={() => { if (navigator.share) navigator.share({ title: 'IziMelo', text: shareText, url: shareUrl }); else { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } }} className="btn-secondary flex items-center gap-2"><Share2 className="w-4 h-4" /> {t('Partager', 'Share')}</button>
             <a href={`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2 !bg-green-50 !text-green-700 !border-green-200 hover:!bg-green-100"><MessageCircle className="w-4 h-4" /> WhatsApp</a>
             <button onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="btn-secondary flex items-center gap-2">
               {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}

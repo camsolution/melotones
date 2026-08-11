@@ -3,9 +3,9 @@ import { Star, Quote } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const testimonials = [
-  { name: 'Aminata S.', role: 'Maman et passionnée de musique', text: 'J’ai offert une chanson pour l’anniversaire de ma fille. Toute la famille a pleuré de joie. Melotones, c’est magique.', avatar: 'https://ui-avatars.com/api/?name=Aminata+S&background=7c3aed&color=fff' },
+  { name: 'Aminata S.', role: 'Maman et passionnée de musique', text: 'J’ai offert une chanson pour l’anniversaire de ma fille. Toute la famille a pleuré de joie. IziMelo, c’est magique.', avatar: 'https://ui-avatars.com/api/?name=Aminata+S&background=7c3aed&color=fff' },
   { name: 'Koffi M.', role: 'DJ professionnel', text: 'La qualité des mélodies est bluffante. J’ai personnalisé un morceau pour un mariage, le rendu était digne d’un studio.', avatar: 'https://ui-avatars.com/api/?name=Koffi+M&background=db2777&color=fff' },
-  { name: 'Inès B.', role: 'Étudiante', text: 'J’ai rédigé un message d’excuse en chanson. Inattendu, original, et ça a marché ! Merci Melotones.', avatar: 'https://ui-avatars.com/api/?name=Ines+B&background=8b5cf6&color=fff' },
+  { name: 'Inès B.', role: 'Étudiante', text: 'J’ai rédigé un message d’excuse en chanson. Inattendu, original, et ça a marché ! Merci IziMelo.', avatar: 'https://ui-avatars.com/api/?name=Ines+B&background=8b5cf6&color=fff' },
 ];
 
 export default function Testimonials() {

@@ -1,89 +1,159 @@
 'use client';
 import { useCallback, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { Headphones, ShieldCheck } from 'lucide-react';
+import { Headphones, Mail, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Turnstile from '@/components/Turnstile';
 
 const CAPTCHA_ENABLED = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
+      <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v2.98h3.87c2.27-2.09 3.58-5.17 3.58-8.8z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.9l-3.87-2.98c-1.07.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.07A12 12 0 0 0 12 24z" />
+      <path fill="#FBBC05" d="M5.27 14.31A7.2 7.2 0 0 1 4.89 12c0-.8.14-1.58.38-2.31V6.62H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.38z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.62l4 3.07C6.22 6.86 8.87 4.75 12 4.75z" />
+    </svg>
+  );
+}
+
 export default function AuthForm() {
-  const { t } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const handleCaptchaVerify = useCallback((token: string) => setCaptchaToken(token), []);
   const handleCaptchaExpire = useCallback(() => setCaptchaToken(null), []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
+
+  const handleGoogle = async () => {
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (error) setError(error.message);
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (CAPTCHA_ENABLED && !captchaToken) {
       setError(t('Merci de compléter la vérification humaine.', 'Please complete the human verification.'));
       return;
     }
-    setLoading(true);
+    setStatus('loading');
     setError('');
-    const options = captchaToken ? { captchaToken } : undefined;
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName }, ...options } });
-      if (error) setError(error.message);
-      else { alert(t('Vérifiez votre email pour confirmer votre compte !', 'Check your email to confirm your account!')); router.push('/login'); }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password, options });
-      if (error) setError(error.message);
-      else router.push('/dashboard');
-    }
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo, ...(captchaToken ? { captchaToken } : {}) },
+    });
     setCaptchaToken(null);
-    setLoading(false);
+    if (error) { setError(error.message); setStatus('idle'); }
+    else setStatus('sent');
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-[28px] border border-gray-200 bg-white shadow-xl p-8">
-        <div className="flex flex-col items-center mb-7">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-brand-500 via-magenta-500 to-amber-400">
-            <Headphones className="w-7 h-7 text-white" strokeWidth={1.9} />
+    <div className="min-h-[85vh] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-6">
+          <div className="flex bg-gray-100 rounded-full p-1 gap-1">
+            {(['fr', 'en'] as const).map(l => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${lang === l ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
+              >
+                <span aria-hidden>{l === 'fr' ? '🇫🇷' : '🇺🇸'}</span> {l.toUpperCase()}
+              </button>
+            ))}
           </div>
-          <h1 className="font-display font-extrabold text-2xl text-gray-800">{isSignUp ? t('Créer un compte', 'Create account') : t('Connexion', 'Login')}</h1>
-          <p className="text-gray-500 mt-1">{isSignUp ? t('Rejoignez Melotones gratuitement', 'Join Melotones for free') : t('Heureux de vous revoir', 'Happy to see you again')}</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && <input type="text" placeholder={t('Nom complet', 'Full name')} value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full py-3 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none" />}
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-3 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none" />
-          <input type="password" placeholder={t('Mot de passe', 'Password')} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="w-full py-3 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none" />
 
-          {CAPTCHA_ENABLED && (
-            <div className="flex flex-col items-center gap-2">
-              <Turnstile onVerify={handleCaptchaVerify} onExpire={handleCaptchaExpire} />
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                <ShieldCheck className="w-3.5 h-3.5" /> {t('Vérification humaine requise', 'Human verification required')}
-              </span>
+        <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-8 text-center">
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-brand-500 via-magenta-500 to-amber-400">
+              <Headphones className="w-7 h-7 text-white" strokeWidth={1.9} />
             </div>
-          )}
+            <span className="font-display font-extrabold text-lg tracking-tight text-gray-800">IziMelo</span>
+          </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || (CAPTCHA_ENABLED && !captchaToken)}
-            className="w-full inline-flex items-center justify-center gap-2 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0"
-          >
-            {loading ? t('Chargement...', 'Loading...') : isSignUp ? t("S'inscrire", 'Sign up') : t('Se connecter', 'Sign in')}
-          </button>
-        </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
-          {isSignUp ? t('Déjà un compte ?', 'Already have an account?') : t('Pas encore de compte ?', "Don't have an account?")}{' '}
-          <button className="text-brand-600 font-semibold hover:underline" onClick={() => { setIsSignUp(!isSignUp); setError(''); setCaptchaToken(null); }}>
-            {isSignUp ? t('Se connecter', 'Sign in') : t('Créer un compte', 'Create account')}
-          </button>
-        </p>
+          {status === 'sent' ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" strokeWidth={1.6} />
+              <h1 className="font-display font-extrabold text-xl text-gray-800">{t('Vérifiez votre boîte mail', 'Check your inbox')}</h1>
+              <p className="text-sm text-gray-500 max-w-xs">
+                {t('On a envoyé un lien de connexion à', 'We sent a sign-in link to')} <strong className="text-gray-700">{email}</strong>.
+              </p>
+              <button onClick={() => setStatus('idle')} className="text-brand-600 font-semibold text-sm hover:underline mt-2">
+                {t('Utiliser une autre adresse', 'Use a different address')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <h1 className="font-display font-extrabold text-2xl text-gray-800 text-balance">{t('Bienvenue sur IziMelo', 'Welcome to IziMelo')}</h1>
+              <p className="text-gray-500 mt-2 mb-1 text-[15px]">{t('Chaque histoire mérite sa chanson.', 'Every story deserves its song.')}</p>
+              <p className="text-gray-400 text-sm mb-7">{t('Connectez-vous pour créer vos chansons', 'Sign in to create your songs')}</p>
+
+              <button
+                onClick={handleGoogle}
+                className="w-full flex items-center justify-center gap-3 font-semibold text-[14.5px] py-3.5 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors mb-5"
+              >
+                <GoogleIcon /> {t('Continuer avec Google', 'Continue with Google')}
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs font-semibold text-gray-400 uppercase">{t('ou', 'or')}</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <form onSubmit={handleEmailSubmit} className="space-y-4 text-left">
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full py-3.5 pl-11 pr-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[14.5px]"
+                  />
+                </div>
+
+                {CAPTCHA_ENABLED && (
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Turnstile onVerify={handleCaptchaVerify} onExpire={handleCaptchaExpire} />
+                    <span className="flex items-center gap-1 text-[10.5px] text-gray-400">
+                      <ShieldCheck className="w-3 h-3" /> {t('Vérification humaine', 'Human verification')}
+                    </span>
+                  </div>
+                )}
+
+                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={status === 'loading' || (CAPTCHA_ENABLED && !captchaToken)}
+                  className="w-full font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0"
+                >
+                  {status === 'loading' ? t('Envoi...', 'Sending...') : t('Connexion par email', 'Sign in by email')}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+
+        {status !== 'sent' && (
+          <p className="text-center text-xs text-gray-400 mt-6 px-4">
+            {t('En vous connectant, vous acceptez nos Conditions d’utilisation et notre Politique de confidentialité.',
+              'By signing in, you agree to our Terms of Service and Privacy Policy.')}
+          </p>
+        )}
       </div>
     </div>
   );

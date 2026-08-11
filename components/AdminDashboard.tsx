@@ -100,7 +100,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard Admin — Melotones</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard Admin — IziMelo</h1>
 
       <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200 pb-2">
         {TABS.map(t => (

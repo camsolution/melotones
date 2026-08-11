@@ -102,7 +102,7 @@ export default function Sidebar({ session: initialSession }: { session: Session 
         <div className="w-9 h-9 rounded-[11px] flex-none flex items-center justify-center bg-gradient-to-br from-violet-500 via-magenta-500 to-amber-400">
           <Headphones className="w-[18px] h-[18px] text-stage" strokeWidth={2} />
         </div>
-        <span className="font-display font-bold text-[16px] tracking-tight text-white">Melotones</span>
+        <span className="font-display font-bold text-[16px] tracking-tight text-white">IziMelo</span>
       </Link>
 
       <nav className="flex flex-col gap-1 mt-2">
@@ -159,7 +159,7 @@ export default function Sidebar({ session: initialSession }: { session: Session 
           <div className="w-7 h-7 rounded-[8px] flex items-center justify-center bg-gradient-to-br from-violet-500 via-magenta-500 to-amber-400">
             <Headphones className="w-[14px] h-[14px] text-stage" strokeWidth={2} />
           </div>
-          <span className="font-display font-bold text-[15px] text-white">Melotones</span>
+          <span className="font-display font-bold text-[15px] text-white">IziMelo</span>
         </Link>
         <button onClick={() => setMobileOpen(o => !o)} className="p-2 text-stage-text">
           {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
