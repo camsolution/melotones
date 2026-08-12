@@ -13,8 +13,9 @@ async function withLocalizedError(gen: any, userId: string) {
   return { ...safe, localized_error: localizeProviderError(failure_reason, creditRow?.language || 'fr') };
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClientWithCookies();
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -44,8 +45,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   return NextResponse.json(await withLocalizedError(gen, user.id));
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClientWithCookies();
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

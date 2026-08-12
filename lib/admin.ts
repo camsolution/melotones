@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
 );
 
 export async function requireAdmin() {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { error: 'Unauthorized' as const, status: 401, user: null };
 

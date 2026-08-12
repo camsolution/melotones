@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   // ensuite par supabaseAdmin (service role) : la validation (solde, cooldown,
   // ownership) vit exclusivement côté code serveur, jamais dans des policies
   // RLS accordant un accès direct en écriture au client.
-  const authClient = createServerClientWithCookies();
+  const authClient = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await authClient.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

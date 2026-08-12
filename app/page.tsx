@@ -4,7 +4,7 @@ import { fetchPublicCommunitySongs } from '@/lib/communitySongs';
 import HomeContent from '@/components/HomeContent';
 
 export default async function Home() {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { session } } = await supabase.auth.getSession();
   if (session) redirect('/dashboard');
 

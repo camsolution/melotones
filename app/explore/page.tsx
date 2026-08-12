@@ -9,7 +9,10 @@ export const metadata = {
   alternates: { canonical: '/explore' },
 };
 
-export default async function ExplorePage({ searchParams }: { searchParams: { occasion?: string; style?: string; q?: string } }) {
+export default async function ExplorePage(
+  props: { searchParams: Promise<{ occasion?: string; style?: string; q?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const songs = await fetchPublicCommunitySongs(searchParams);
   return <ExploreContent songs={songs} />;
 }

@@ -36,7 +36,8 @@ async function resolveAudience(audience: string): Promise<Recipient[]> {
   return audience === 'active' ? allUsers.filter((u) => activeIds.has(u.id)) : allUsers.filter((u) => !activeIds.has(u.id));
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 

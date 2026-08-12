@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 );
 
 export default async function AdminPage() {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 

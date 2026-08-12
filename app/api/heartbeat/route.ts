@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 
 export async function POST() {
-  const authClient = createServerClientWithCookies();
+  const authClient = await createServerClientWithCookies();
   const { data: { user }, error } = await authClient.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

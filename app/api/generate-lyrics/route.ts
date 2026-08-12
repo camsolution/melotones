@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const COOLDOWN_MS = 5000;
 
 export async function POST(request: Request) {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

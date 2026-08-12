@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 
@@ -20,7 +21,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json(data);
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 

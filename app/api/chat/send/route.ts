@@ -8,7 +8,7 @@ const COOLDOWN_MS = 3000;
 const ESCALATION_NOTICE = "Je transmets votre demande à notre équipe — un conseiller va vous répondre ici même dès que possible. Merci de votre patience 🙏";
 
 export async function POST(request: Request) {
-  const authClient = createServerClientWithCookies();
+  const authClient = await createServerClientWithCookies();
   const { data: { user }, error } = await authClient.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

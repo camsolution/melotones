@@ -8,7 +8,7 @@ export const metadata = {
 };
 
 export default async function Login() {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { session } } = await supabase.auth.getSession();
   if (session) redirect('/dashboard');
   return <AuthForm />;

@@ -6,7 +6,8 @@ function csvEscape(value: string) {
   return value;
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 

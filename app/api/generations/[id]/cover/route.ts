@@ -15,8 +15,9 @@ function hasValidImageSignature(bytes: Uint8Array, mimeType: string): boolean {
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClientWithCookies();
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

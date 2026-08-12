@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const authClient = createServerClientWithCookies();
+  const authClient = await createServerClientWithCookies();
   const { data: { user }, error } = await authClient.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

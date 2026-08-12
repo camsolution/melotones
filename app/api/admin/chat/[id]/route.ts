@@ -3,7 +3,8 @@ import { requireAdmin, supabaseAdmin } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 
@@ -17,7 +18,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
   return NextResponse.json(messages || []);
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 

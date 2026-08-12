@@ -65,7 +65,7 @@ const jsonLd = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { session } } = await supabase.auth.getSession();
   return (
     <html lang="fr" className={`${manrope.variable} ${unbounded.variable}`}>

@@ -5,7 +5,8 @@ import SongDetail from '@/components/SongDetail';
 import { occasionTranslations } from '@/lib/listTranslations';
 import type { Metadata } from 'next';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const { data: song } = await supabaseAdmin
     .from('generations')
     .select('occasion, style, is_public, status')
@@ -28,7 +29,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function SongPage({ params }: { params: { id: string } }) {
+export default async function SongPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Lecture via service role : les chansons sont accessibles par lien
   // partageable (cadeau musical), pas réservées au propriétaire — voir
   // la discussion sécurité. isOwner détermine juste l'affichage du
@@ -40,7 +42,7 @@ export default async function SongPage({ params }: { params: { id: string } }) {
     .single();
   if (error || !song) notFound();
 
-  const supabase = createServerClientWithCookies();
+  const supabase = await createServerClientWithCookies();
   const { data: { user } } = await supabase.auth.getUser();
   const isOwner = user?.id === song.user_id;
 

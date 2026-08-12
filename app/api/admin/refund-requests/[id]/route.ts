@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { error, status, user } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 
