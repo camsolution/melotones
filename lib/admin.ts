@@ -1,5 +1,6 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,6 +34,20 @@ export async function getEmailsByIds(ids: string[]): Promise<Map<string, string>
     })
   );
   return new Map(results);
+}
+
+// Autorise les routines cloud (agents d'automatisation) à appeler certains
+// endpoints admin étroits via un secret dédié — jamais SUPABASE_SERVICE_ROLE_KEY,
+// pour limiter le blast radius si le secret fuit (même principe que BACKUP_EXPORT_SECRET).
+export function verifyAutomationSecret(request: Request): boolean {
+  const expected = process.env.AUTOMATION_SECRET;
+  if (!expected) return false;
+  const url = new URL(request.url);
+  const provided = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || url.searchParams.get('token') || '';
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export { supabaseAdmin };

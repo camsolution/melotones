@@ -43,12 +43,13 @@ type EmailCampaign = {
   headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
-const TABS = ['overview', 'analytics', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
+const TABS = ['overview', 'analytics', 'automation', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
   overview: "Vue d'ensemble",
   analytics: 'Analytics',
+  automation: 'Automatisation',
   requests: 'Demandes',
   users: 'Utilisateurs',
   generations: 'Chansons',
@@ -61,6 +62,18 @@ const TAB_LABELS: Record<Tab, string> = {
   emailing: 'Emailing',
   alerts: 'Alertes',
 };
+
+type AutomationRun = {
+  id: string; agent_slug: string; status: 'success' | 'alert' | 'failure';
+  summary: string | null; details: any; ran_at: string;
+};
+
+const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; description: string }[] = [
+  { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, envoyés à glisser dans Google Drive.' },
+  { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT.' },
+  { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Toutes les 4h', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs récentes, solde bas.' },
+  { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère de nouveaux visuels + légendes, envoyés pour publication manuelle.' },
+];
 
 const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };
 
@@ -104,12 +117,14 @@ export default function AdminDashboard() {
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
   const [newCoupon, setNewCoupon] = useState<Record<string, { code: string; discount_percent: string; quota: string }>>({});
   const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
+  const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, analyticsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
+    const [statsRes, analyticsRes, automationRunsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/analytics'),
+      fetch('/api/admin/automation/runs'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
       fetch(`/api/admin/generations?status=${genFilter}`),
@@ -125,6 +140,7 @@ export default function AdminDashboard() {
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
+    if (automationRunsRes.ok) setAutomationRuns(await automationRunsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
     if (usersRes.ok) setUsers(await usersRes.json());
     if (genRes.ok) setGenerations(await genRes.json());
@@ -605,6 +621,78 @@ export default function AdminDashboard() {
                   {analytics.conversionRate !== null && <span className="block text-gray-400">{(analytics.conversionRate * 100).toFixed(1)}% du total</span>}
                 </p>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'automation' && (
+        <div>
+          <h2 className="text-lg font-bold mb-1 text-gray-800">Centre de contrôle — Agents autonomes</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Chaque agent tourne comme une routine cloud planifiée, indépendante de ce dashboard, et rapporte son résultat ici après chaque exécution.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {AUTOMATION_AGENTS.map(agent => {
+              const lastRun = automationRuns.find(r => r.agent_slug === agent.slug);
+              const statusColor = !lastRun ? 'bg-gray-100 text-gray-500'
+                : lastRun.status === 'success' ? 'bg-green-100 text-green-700'
+                : lastRun.status === 'alert' ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700';
+              const statusLabel = !lastRun ? 'Jamais exécuté'
+                : lastRun.status === 'success' ? 'OK'
+                : lastRun.status === 'alert' ? 'Alerte'
+                : 'Échec';
+              return (
+                <div key={agent.slug} className="card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-800">{agent.name}</p>
+                      <p className="text-xs text-gray-400">{agent.schedule}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColor}`}>{statusLabel}</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">{agent.description}</p>
+                  {lastRun && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                      <p>{new Date(lastRun.ran_at).toLocaleString('fr-FR')}</p>
+                      {lastRun.summary && <p className="mt-1 text-gray-700">{lastRun.summary}</p>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <h3 className="text-sm font-bold mb-2 text-gray-700">Historique des exécutions</h3>
+          {automationRuns.length === 0 ? (
+            <p className="text-gray-500">Aucune exécution enregistrée pour l'instant.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th className="py-2 pr-4">Agent</th>
+                    <th className="py-2 pr-4">Statut</th>
+                    <th className="py-2 pr-4">Résumé</th>
+                    <th className="py-2 pr-4">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {automationRuns.map(r => (
+                    <tr key={r.id} className="border-b border-gray-100">
+                      <td className="py-2 pr-4">{AUTOMATION_AGENTS.find(a => a.slug === r.agent_slug)?.name || r.agent_slug}</td>
+                      <td className="py-2 pr-4">
+                        <span className={`text-xs px-2 py-1 rounded-full ${r.status === 'success' ? 'bg-green-100 text-green-700' : r.status === 'alert' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                          {r.status === 'success' ? 'OK' : r.status === 'alert' ? 'Alerte' : 'Échec'}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4 text-gray-600">{r.summary || '—'}</td>
+                      <td className="py-2 pr-4 text-gray-400">{new Date(r.ran_at).toLocaleString('fr-FR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
