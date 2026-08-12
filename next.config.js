@@ -4,7 +4,7 @@ const nextConfig = {
   // le traçage de fichiers de Next.js ne les inclut pas automatiquement dans
   // le bundle serverless, il faut les lister explicitement (constaté en prod).
   outputFileTracingIncludes: {
-    '/api/admin/partners/[id]/report': ['./node_modules/pdfkit/js/data/**'],
+    '/api/admin/**': ['./node_modules/pdfkit/js/data/**'],
   },
   async headers() {
     return [
