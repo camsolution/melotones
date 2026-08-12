@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { generateMusic } from '@/lib/music-generator';
 import { autoRefund } from '@/lib/refunds';
 import { VOICE_LANGUAGE_NAMES, computeMessageBudget, buildPrompt } from '@/lib/promptBudget';
-import { logProviderError, localizeProviderError } from '@/lib/providerErrors';
+import { logProviderError, localizeProviderError, isProviderOutOfCredits } from '@/lib/providerErrors';
 
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
@@ -62,6 +62,16 @@ export async function POST(request: Request) {
   }
 
   const isAdmin = creditRow.is_admin === true;
+
+  // Coupe-circuit : évite de faire payer/attendre un utilisateur pour une
+  // génération vouée à échouer si le fournisseur vient de signaler qu'il est
+  // à sec (voir isProviderOutOfCredits) — l'admin reste exempté pour pouvoir
+  // vérifier immédiatement après un rechargement, sans attendre la fenêtre.
+  if (!isAdmin && await isProviderOutOfCredits()) {
+    return NextResponse.json({
+      error: localizeProviderError('INSUFFICIENT_CREDITS', creditRow.language),
+    }, { status: 503 });
+  }
 
   // La longueur autorisée pour le message dépend du style choisi (les descriptifs
   // de style les plus détaillés laissent moins de place avant la limite de

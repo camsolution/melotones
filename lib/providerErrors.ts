@@ -47,3 +47,26 @@ export function localizeProviderError(rawMessage: string, lang: string): string 
 export async function logProviderError(generationId: string | null, userId: string, message: string, provider = 'musicgpt') {
   await supabaseAdmin.from('provider_errors').insert({ generation_id: generationId, user_id: userId, provider, message });
 }
+
+const OUTAGE_WINDOW_MS = 10 * 60 * 1000;
+
+// Coupe-circuit : MusicGPT n'expose aucune API de solde, donc notre seul
+// signal fiable qu'ils sont réellement à sec est un vrai INSUFFICIENT_CREDITS
+// déjà reçu récemment (l'estimation interne topped_up_usd/coût-par-génération
+// peut être fausse — vu en pratique). Bloque les nouvelles tentatives pendant
+// une courte fenêtre plutôt que de faire perdre du temps à chaque utilisateur
+// sur une génération vouée à échouer ; se lève automatiquement une fois la
+// fenêtre passée, sans action admin requise.
+export async function isProviderOutOfCredits(provider = 'musicgpt'): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('provider_errors')
+    .select('created_at, message')
+    .eq('provider', provider)
+    .ilike('message', '%INSUFFICIENT_CREDITS%')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return false;
+  return Date.now() - new Date(data.created_at).getTime() < OUTAGE_WINDOW_MS;
+}
