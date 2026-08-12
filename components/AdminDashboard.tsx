@@ -11,7 +11,11 @@ type AdminUser = { id: string; email: string; created_at: string; last_sign_in_a
 type AdminGeneration = { id: string; user_email: string; occasion: string; style: string; status: string; created_at: string };
 type PricingPack = { id: string; credits: number; price_fcfa: number; label: string; active: boolean; sort_order: number };
 type Coupon = { id: string; code: string; partner_id: string; discount_percent: number; quota: number | null; used_count: number; active: boolean };
-type Partner = { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; active: boolean; coupons: Coupon[] };
+type Partner = {
+  id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null;
+  active: boolean; coupons: Coupon[]; commission_percent: number;
+  totalSales: number; totalRevenueFcfa: number; totalCommissionFcfa: number;
+};
 type Ad = { id: string; advertiser_name: string; media_url: string; media_type: 'image' | 'video'; target_url: string | null; active: boolean; sort_order: number };
 type FeaturedSong = { id: string; generation_id: string; active: boolean; generation: { id: string; occasion: string; style: string; status: string } | null };
 type RefundRequest = {
@@ -127,6 +131,8 @@ export default function AdminDashboard() {
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editBalanceValue, setEditBalanceValue] = useState('');
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
+  const [editingCommissionId, setEditingCommissionId] = useState<string | null>(null);
+  const [editCommissionValue, setEditCommissionValue] = useState<Record<string, string>>({});
   const [newCoupon, setNewCoupon] = useState<Record<string, { code: string; discount_percent: string; quota: string }>>({});
   const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
   const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
@@ -413,6 +419,18 @@ export default function AdminDashboard() {
     });
     setBusyId(null);
     if (res.ok) { setNewPartner({ name: '', contact_email: '', contact_phone: '' }); loadAll(); } else alert('Erreur création partenaire.');
+  };
+
+  const handleUpdateCommission = async (id: string) => {
+    const value = editCommissionValue[id];
+    const pct = Number(value);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) { alert('Commission invalide (0 à 100).'); return; }
+    setBusyId(id);
+    const res = await fetch(`/api/admin/partners/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commission_percent: pct }),
+    });
+    setBusyId(null);
+    if (res.ok) { setEditingCommissionId(null); loadAll(); } else alert('Erreur mise à jour commission.');
   };
 
   const handleDeletePartner = async (id: string) => {
@@ -989,8 +1007,48 @@ export default function AdminDashboard() {
                   <p className="text-xs text-gray-500">{p.contact_email} {p.contact_phone && `· ${p.contact_phone}`}</p>
                 </div>
                 <div className="flex gap-2">
-                  <a href={`/api/admin/partners/${p.id}/report`} className="btn-secondary text-xs">Télécharger le rapport CSV</a>
+                  <a href={`/api/admin/partners/${p.id}/report?format=csv`} className="btn-secondary text-xs">CSV</a>
+                  <a href={`/api/admin/partners/${p.id}/report?format=pdf`} className="btn-secondary text-xs">PDF</a>
                   <button disabled={busyId === p.id} onClick={() => handleDeletePartner(p.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-gray-50 rounded-xl p-3">
+                <div>
+                  <p className="text-xs text-gray-400">Ventes</p>
+                  <p className="font-semibold text-gray-800">{p.totalSales}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Chiffre d'affaires</p>
+                  <p className="font-semibold text-gray-800">{p.totalRevenueFcfa.toLocaleString('fr-FR')} FCFA</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Commission</p>
+                  {editingCommissionId === p.id ? (
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="number" min={0} max={100} autoFocus
+                        value={editCommissionValue[p.id] ?? String(p.commission_percent)}
+                        onChange={e => setEditCommissionValue(v => ({ ...v, [p.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleUpdateCommission(p.id); if (e.key === 'Escape') setEditingCommissionId(null); }}
+                        className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs"
+                      />
+                      <span className="text-xs text-gray-400">%</span>
+                      <button disabled={busyId === p.id} onClick={() => handleUpdateCommission(p.id)} className="text-xs text-brand-600 hover:text-brand-700">OK</button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingCommissionId(p.id); setEditCommissionValue(v => ({ ...v, [p.id]: String(p.commission_percent) })); }}
+                      className="font-semibold text-gray-800 hover:underline decoration-dotted"
+                      title="Modifier le taux de commission"
+                    >
+                      {p.commission_percent}%
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Commission due</p>
+                  <p className="font-semibold text-brand-700">{p.totalCommissionFcfa.toLocaleString('fr-FR')} FCFA</p>
                 </div>
               </div>
 

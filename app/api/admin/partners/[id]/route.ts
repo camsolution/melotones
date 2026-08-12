@@ -7,9 +7,17 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (error) return NextResponse.json({ error }, { status });
 
   const updates = await request.json();
-  const allowed = ['name', 'contact_email', 'contact_phone', 'notes', 'active'];
+  const allowed = ['name', 'contact_email', 'contact_phone', 'notes', 'active', 'commission_percent'];
   const filtered: Record<string, any> = {};
   for (const key of allowed) if (key in updates) filtered[key] = updates[key];
+
+  if ('commission_percent' in filtered) {
+    const pct = Number(filtered.commission_percent);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return NextResponse.json({ error: 'Commission invalide (0 à 100).' }, { status: 400 });
+    }
+    filtered.commission_percent = pct;
+  }
 
   const { data, error: dbError } = await supabaseAdmin
     .from('partners')

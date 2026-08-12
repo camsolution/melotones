@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
+import { computePartnerReport } from '@/lib/partnerReport';
 
 export async function GET() {
   const { error, status } = await requireAdmin();
@@ -12,9 +13,16 @@ export async function GET() {
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
   const { data: coupons } = await supabaseAdmin.from('coupons').select('*');
-  const withCoupons = (partners || []).map((p) => ({
-    ...p,
-    coupons: (coupons || []).filter((c) => c.partner_id === p.id),
+
+  const withCoupons = await Promise.all((partners || []).map(async (p) => {
+    const report = await computePartnerReport(p.id);
+    return {
+      ...p,
+      coupons: (coupons || []).filter((c) => c.partner_id === p.id),
+      totalSales: report?.totalSales ?? 0,
+      totalRevenueFcfa: report?.totalRevenueFcfa ?? 0,
+      totalCommissionFcfa: report?.totalCommissionFcfa ?? 0,
+    };
   }));
 
   return NextResponse.json(withCoupons);
