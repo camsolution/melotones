@@ -31,10 +31,10 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
       <section className="text-center py-16 md:py-24 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-amber-50 opacity-70 -z-10" />
         <h1 className="font-display text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-brand-600 via-magenta-500 to-amber-500 text-transparent bg-clip-text mb-6 leading-tight text-balance">
-          {t('Vos mots, notre IA, une chanson inoubliable', 'Your words, our AI, an unforgettable song')}
+          {t('Racontez votre histoire, Melotones en fait une chanson', 'Tell your story, Melotones turns it into a song')}
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-          {t('Anniversaires, mariages, baptêmes, hommages… Transformez n’importe quel message en un morceau unique et émouvant.', 'Birthdays, weddings, christenings, tributes… Turn any message into a unique and moving song.')}
+          {t('Choisissez une occasion, écrivez quelques mots, sélectionnez un style africain ou international — l’IA compose une chanson unique, prête à offrir.', 'Pick an occasion, write a few words, choose an African or international style — the AI composes a unique song, ready to give.')}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
           <Link href={primaryCtaHref} className="btn-primary text-lg px-8 py-4">{primaryCtaLabel}</Link>

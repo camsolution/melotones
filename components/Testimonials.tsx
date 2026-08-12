@@ -14,7 +14,7 @@ export default function Testimonials() {
     <section className="py-16">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-800">{t('Ils ont osé, ils ont adoré', 'They dared, they loved it')}</h2>
-        <p className="text-gray-600 mt-2 max-w-2xl mx-auto">{t('Des milliers de personnes transforment leurs émotions en chansons. Découvrez leurs retours.', 'Thousands of people turn their emotions into songs. Discover their feedback.')}</p>
+        <p className="text-gray-600 mt-2 max-w-2xl mx-auto">{t('Voici ce que racontent celles et ceux qui ont déjà créé leur chanson.', 'Here\'s what people who already created their song have to say.')}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {testimonials.map((t, i) => (
