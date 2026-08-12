@@ -1,14 +1,20 @@
 import { supabaseAdmin } from '@/lib/admin';
+import crypto from 'crypto';
 
 // Vercel injecte automatiquement 'Authorization: Bearer $CRON_SECRET' sur les
 // appels Cron Jobs quand cette variable d'env existe — donc une requête qui ne
 // porte pas ce header exact ne vient pas de Vercel (protège contre un curl direct
-// sur la route par quelqu'un qui devine le chemin).
+// sur la route par quelqu'un qui devine le chemin). Comparaison à temps constant,
+// comme les autres secrets d'automatisation du projet.
 export function verifyCronSecret(request: Request): boolean {
   const expected = process.env.CRON_SECRET;
   if (!expected) return false;
   const header = request.headers.get('authorization') || '';
-  return header === `Bearer ${expected}`;
+  const expectedHeader = `Bearer ${expected}`;
+  const expectedBuf = Buffer.from(expectedHeader);
+  const providedBuf = Buffer.from(header);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export async function getAdminEmail(): Promise<string | null> {

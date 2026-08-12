@@ -40,7 +40,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
 const USER_ROW_TABLES = [
   'generations', 'purchase_requests', 'refund_requests', 'chat_messages',
-  'chat_conversations', 'presence', 'provider_errors', 'user_credits',
+  'chat_conversations', 'presence', 'provider_errors', 'testimonials',
+  'onboarding_emails_sent', 'user_credits',
 ];
 
 export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
