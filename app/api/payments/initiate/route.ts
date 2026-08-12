@@ -3,10 +3,23 @@ import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { initiatePayDunyaPayment, isPayDunyaConfigured } from '@/lib/payments/paydunya';
 
+const INITIATE_COOLDOWN_MS = 10_000;
+
 export async function POST(request: Request) {
   const supabase = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Évite qu'un client puisse spammer des demandes de paiement (chaque appel
+  // crée une ligne en base ET, pour PayDunya, une vraie requête vers leur API).
+  const { count: recentCount } = await supabaseAdmin
+    .from('purchase_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', new Date(Date.now() - INITIATE_COOLDOWN_MS).toISOString());
+  if ((recentCount ?? 0) > 0) {
+    return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle demande.' }, { status: 429 });
+  }
 
   const { data: creditRow } = await supabaseAdmin.from('user_credits').select('is_admin').eq('user_id', user.id).single();
   if (creditRow?.is_admin) {
