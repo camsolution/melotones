@@ -5,6 +5,13 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 
+// toLocaleString('fr-FR') sépare les milliers par une espace fine insécable
+// (U+202F) — absente de la police Ubuntu embarquée, elle s'affiche en tofu.
+// Espace normale à la place.
+function fmtFcfa(n: number): string {
+  return n.toLocaleString('fr-FR').replace(/[  ]/g, ' ');
+}
+
 function csvEscape(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
@@ -62,16 +69,17 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
 
   doc.fillColor('#150E29').fontSize(10);
   const col = { email: 40, coupon: 190, pack: 260, credits: 320, price: 370, commission: 440 };
+  const widths = { email: 145, coupon: 65, pack: 55, credits: 45, price: 65, commission: 65 };
   const rowY = () => doc.y;
 
   const drawHeaderRow = () => {
     doc.font('Ubuntu-Bold').fontSize(9);
-    doc.text('Email', col.email, rowY(), { width: 145 });
-    doc.text('Coupon', col.coupon, rowY(), { width: 65 });
-    doc.text('Pack', col.pack, rowY(), { width: 55 });
-    doc.text('Chansons', col.credits, rowY(), { width: 45 });
-    doc.text('Prix FCFA', col.price, rowY(), { width: 65 });
-    doc.text('Comm. FCFA', col.commission, rowY(), { width: 65 });
+    doc.text('Email', col.email, rowY(), { width: widths.email });
+    doc.text('Coupon', col.coupon, rowY(), { width: widths.coupon });
+    doc.text('Pack', col.pack, rowY(), { width: widths.pack });
+    doc.text('Chansons', col.credits, rowY(), { width: widths.credits });
+    doc.text('Prix FCFA', col.price, rowY(), { width: widths.price });
+    doc.text('Comm. FCFA', col.commission, rowY(), { width: widths.commission });
     doc.moveDown(0.6);
     doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#e4def2').stroke();
     doc.moveDown(0.3);
@@ -80,19 +88,25 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
 
   drawHeaderRow();
 
+  // Hauteur de ligne calculée sur le texte réellement le plus haut (l'email
+  // peut passer sur plusieurs lignes) — une hauteur fixe faisait chevaucher
+  // les lignes suivantes quand un email était long, constaté à l'aperçu.
   for (const r of report.rows) {
-    if (doc.y > 760) {
+    const emailHeight = doc.heightOfString(r.email, { width: widths.email });
+    const rowHeight = Math.max(emailHeight, doc.currentLineHeight()) + 6;
+
+    if (doc.y + rowHeight > 780) {
       doc.addPage();
       drawHeaderRow();
     }
     const y = rowY();
-    doc.text(r.email, col.email, y, { width: 145 });
-    doc.text(r.couponCode, col.coupon, y, { width: 65 });
-    doc.text(r.packId, col.pack, y, { width: 55 });
-    doc.text(String(r.credits), col.credits, y, { width: 45 });
-    doc.text(r.priceFcfa.toLocaleString('fr-FR'), col.price, y, { width: 65 });
-    doc.text(r.commissionFcfa.toLocaleString('fr-FR'), col.commission, y, { width: 65 });
-    doc.moveDown(0.7);
+    doc.text(r.email, col.email, y, { width: widths.email });
+    doc.text(r.couponCode, col.coupon, y, { width: widths.coupon });
+    doc.text(r.packId, col.pack, y, { width: widths.pack });
+    doc.text(String(r.credits), col.credits, y, { width: widths.credits });
+    doc.text(fmtFcfa(r.priceFcfa), col.price, y, { width: widths.price });
+    doc.text(fmtFcfa(r.commissionFcfa), col.commission, y, { width: widths.commission });
+    doc.y = y + rowHeight;
   }
 
   doc.moveDown(1);
@@ -100,8 +114,8 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
   doc.moveDown(0.5);
   doc.font('Ubuntu-Bold').fontSize(11);
   doc.text(`Ventes : ${report.totalSales}`);
-  doc.text(`Chiffre d'affaires total : ${report.totalRevenueFcfa.toLocaleString('fr-FR')} FCFA`);
-  doc.fillColor('#7c3aed').text(`Commission due (${report.commissionPercent}%) : ${report.totalCommissionFcfa.toLocaleString('fr-FR')} FCFA`);
+  doc.text(`Chiffre d'affaires total : ${fmtFcfa(report.totalRevenueFcfa)} FCFA`);
+  doc.fillColor('#7c3aed').text(`Commission due (${report.commissionPercent}%) : ${fmtFcfa(report.totalCommissionFcfa)} FCFA`);
 
   doc.end();
   return done;
