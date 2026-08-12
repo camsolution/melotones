@@ -74,6 +74,11 @@ type AutomationRun = {
   summary: string | null; details: any; ran_at: string;
 };
 
+type HumanTask = {
+  id: string; title: string; description: string | null; source: string;
+  status: 'pending' | 'done' | 'dismissed'; created_at: string; completed_at: string | null;
+};
+
 const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; description: string }[] = [
   { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, lien de téléchargement envoyé par email (7 jours).' },
   { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT — envoyé par email.' },
@@ -126,14 +131,17 @@ export default function AdminDashboard() {
   const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
   const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [humanTasks, setHumanTasks] = useState<HumanTask[]>([]);
+  const [newTask, setNewTask] = useState({ title: '', description: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
+    const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, humanTasksRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/analytics'),
       fetch('/api/admin/automation/runs'),
       fetch('/api/admin/testimonials'),
+      fetch('/api/admin/human-tasks'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
       fetch(`/api/admin/generations?status=${genFilter}`),
@@ -151,6 +159,7 @@ export default function AdminDashboard() {
     if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
     if (automationRunsRes.ok) setAutomationRuns(await automationRunsRes.json());
     if (testimonialsRes.ok) setTestimonials(await testimonialsRes.json());
+    if (humanTasksRes.ok) setHumanTasks(await humanTasksRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
     if (usersRes.ok) setUsers(await usersRes.json());
     if (genRes.ok) setGenerations(await genRes.json());
@@ -331,6 +340,35 @@ export default function AdminDashboard() {
       const body = await res.json().catch(() => ({}));
       alert(body.error || 'Erreur suppression utilisateur.');
     }
+  };
+
+  const handleHumanTaskAction = async (id: string, action: 'done' | 'dismiss' | 'reopen') => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/human-tasks/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleDeleteHumanTask = async (id: string) => {
+    if (!confirm('Supprimer définitivement cette tâche ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/human-tasks/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleCreateHumanTask = async () => {
+    if (!newTask.title.trim()) return;
+    setBusyId('new-task');
+    const res = await fetch('/api/admin/human-tasks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTask.title.trim(), description: newTask.description.trim() }),
+    });
+    setBusyId(null);
+    if (res.ok) { setNewTask({ title: '', description: '' }); loadAll(); }
+    else alert('Erreur création tâche.');
   };
 
   const handleTestimonialAction = async (id: string, action: 'approve' | 'reject') => {
@@ -690,6 +728,63 @@ export default function AdminDashboard() {
               );
             })}
           </div>
+
+          <h3 className="text-sm font-bold mb-2 text-gray-700">
+            Tâches humaines en attente {humanTasks.filter(t => t.status === 'pending').length > 0 && (
+              <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{humanTasks.filter(t => t.status === 'pending').length}</span>
+            )}
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">
+            Rappelées automatiquement chaque semaine dans le rapport de croissance par email. Les agents peuvent aussi en déposer une eux-mêmes quand ils détectent quelque chose qui a besoin de votre validation.
+          </p>
+          <div className="space-y-2 mb-4">
+            {humanTasks.filter(t => t.status === 'pending').length === 0 && (
+              <p className="text-gray-500 text-sm">Aucune tâche en attente.</p>
+            )}
+            {humanTasks.filter(t => t.status === 'pending').map(t => (
+              <div key={t.id} className="card flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{t.title}</p>
+                  {t.description && <p className="text-xs text-gray-500 mt-1">{t.description}</p>}
+                  <p className="text-xs text-gray-400 mt-1">{t.source === 'admin' ? 'Ajoutée manuellement' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`} · {new Date(t.created_at).toLocaleDateString('fr-FR')}</p>
+                </div>
+                <div className="flex gap-2 flex-none">
+                  <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'done')} className="btn-secondary text-xs px-3 py-1">Fait</button>
+                  <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'dismiss')} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1">Ignorer</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="card flex flex-col sm:flex-row gap-2 mb-4">
+            <input
+              value={newTask.title} onChange={e => setNewTask(s => ({ ...s, title: e.target.value }))}
+              placeholder="Nouvelle tâche…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              value={newTask.description} onChange={e => setNewTask(s => ({ ...s, description: e.target.value }))}
+              placeholder="Détail (optionnel)" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+            <button disabled={busyId === 'new-task' || !newTask.title.trim()} onClick={handleCreateHumanTask} className="btn-secondary text-sm px-4 disabled:opacity-50">Ajouter</button>
+          </div>
+          {humanTasks.filter(t => t.status !== 'pending').length > 0 && (
+            <details className="mb-8">
+              <summary className="text-xs text-gray-400 cursor-pointer mb-2">Tâches traitées ({humanTasks.filter(t => t.status !== 'pending').length})</summary>
+              <div className="space-y-2">
+                {humanTasks.filter(t => t.status !== 'pending').map(t => (
+                  <div key={t.id} className="flex items-center justify-between gap-3 text-sm border-b border-gray-100 py-2">
+                    <div>
+                      <span className={t.status === 'done' ? 'text-gray-500 line-through' : 'text-gray-400 line-through'}>{t.title}</span>
+                      <span className="ml-2 text-xs text-gray-400">{t.status === 'done' ? 'Fait' : 'Ignorée'}</span>
+                    </div>
+                    <div className="flex gap-2 flex-none">
+                      <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'reopen')} className="text-xs text-brand-600 hover:text-brand-700">Rouvrir</button>
+                      <button disabled={busyId === t.id} onClick={() => handleDeleteHumanTask(t.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
 
           <h3 className="text-sm font-bold mb-2 text-gray-700">Historique des exécutions</h3>
           {automationRuns.length === 0 ? (
