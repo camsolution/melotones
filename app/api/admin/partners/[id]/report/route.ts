@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { computePartnerReport, PartnerReport } from '@/lib/partnerReport';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
 
 function csvEscape(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -29,8 +31,23 @@ function buildCsv(report: PartnerReport): string {
   return lines.join('\n');
 }
 
+// pdfkit charge par défaut ses polices standard (Helvetica...) depuis des
+// fichiers .afm de node_modules, absents du bundle serverless Vercel même
+// avec outputFileTracingIncludes (non respecté par Turbopack, constaté en
+// prod) — on enregistre nos propres polices TTF (fichiers du projet, donc
+// tracées normalement) et on désactive l'init de police par défaut via
+// `font: false`, qui saute l'appel this.font('Helvetica') dans pdfkit.
 async function buildPdf(report: PartnerReport): Promise<Buffer> {
-  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  const regularPath = path.join(process.cwd(), 'assets/fonts/Ubuntu-Regular.ttf');
+  const boldPath = path.join(process.cwd(), 'assets/fonts/Ubuntu-Bold.ttf');
+  const regularFont = fs.readFileSync(regularPath);
+  const boldFont = fs.readFileSync(boldPath);
+
+  const doc = new PDFDocument({ margin: 40, size: 'A4', font: false as any });
+  doc.registerFont('Ubuntu', regularFont);
+  doc.registerFont('Ubuntu-Bold', boldFont);
+  doc.font('Ubuntu');
+
   const chunks: Buffer[] = [];
   doc.on('data', (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -38,17 +55,17 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
     doc.on('error', reject);
   });
 
-  doc.fillColor('#7c3aed').fontSize(20).text('Melotones', { continued: false });
-  doc.fillColor('#150E29').fontSize(14).text(`Rapport partenaire — ${report.partnerName}`, { paragraphGap: 4 });
-  doc.fillColor('#666666').fontSize(9).text(`Généré le ${new Date().toLocaleString('fr-FR')}`);
+  doc.font('Ubuntu-Bold').fillColor('#7c3aed').fontSize(20).text('Melotones', { continued: false });
+  doc.font('Ubuntu-Bold').fillColor('#150E29').fontSize(14).text(`Rapport partenaire — ${report.partnerName}`, { paragraphGap: 4 });
+  doc.font('Ubuntu').fillColor('#666666').fontSize(9).text(`Généré le ${new Date().toLocaleString('fr-FR')}`);
   doc.moveDown(1);
 
   doc.fillColor('#150E29').fontSize(10);
-  const col = { email: 40, coupon: 190, pack: 260, credits: 320, price: 370, commission: 440, date: 500 };
+  const col = { email: 40, coupon: 190, pack: 260, credits: 320, price: 370, commission: 440 };
   const rowY = () => doc.y;
 
   const drawHeaderRow = () => {
-    doc.font('Helvetica-Bold').fontSize(9);
+    doc.font('Ubuntu-Bold').fontSize(9);
     doc.text('Email', col.email, rowY(), { width: 145 });
     doc.text('Coupon', col.coupon, rowY(), { width: 65 });
     doc.text('Pack', col.pack, rowY(), { width: 55 });
@@ -58,7 +75,7 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
     doc.moveDown(0.6);
     doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#e4def2').stroke();
     doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(8.5);
+    doc.font('Ubuntu').fontSize(8.5);
   };
 
   drawHeaderRow();
@@ -81,7 +98,7 @@ async function buildPdf(report: PartnerReport): Promise<Buffer> {
   doc.moveDown(1);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#150E29').stroke();
   doc.moveDown(0.5);
-  doc.font('Helvetica-Bold').fontSize(11);
+  doc.font('Ubuntu-Bold').fontSize(11);
   doc.text(`Ventes : ${report.totalSales}`);
   doc.text(`Chiffre d'affaires total : ${report.totalRevenueFcfa.toLocaleString('fr-FR')} FCFA`);
   doc.fillColor('#7c3aed').text(`Commission due (${report.commissionPercent}%) : ${report.totalCommissionFcfa.toLocaleString('fr-FR')} FCFA`);
