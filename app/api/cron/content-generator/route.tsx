@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { ImageResponse } from 'next/og';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import sharp from 'sharp';
 import { supabaseAdmin } from '@/lib/admin';
 import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
 import { sendEmail } from '@/lib/email';
@@ -12,7 +12,7 @@ const VIOLET = '#8b5cf6';
 const MAGENTA = '#f23d82';
 const AMBER = '#ffb23e';
 const INK = '#150E29';
-const W = 1080, H = 1080;
+const SIZE = 1080;
 
 const ANGLES = [
   'cadeau original et surprenant',
@@ -62,47 +62,65 @@ Les 2 variations doivent être différentes l'une de l'autre (angle légèrement
   return slides.slice(0, 2);
 }
 
-function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Google Fonts sert du TTF (au lieu de woff2) aux user-agents anciens qui ne
+// déclarent pas le supporter — satori (utilisé par ImageResponse) ne lit que
+// truetype/opentype, pas woff2.
+async function fetchGoogleFontTtf(family: string, weight: number): Promise<ArrayBuffer> {
+  const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weight}&display=swap`, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36' },
+  });
+  const css = await cssRes.text();
+  const match = css.match(/url\((https:\/\/[^)]+\.ttf)\)/);
+  if (!match) throw new Error('Police introuvable dans la réponse Google Fonts');
+  const fontRes = await fetch(match[1]);
+  return fontRes.arrayBuffer();
 }
 
-function buildSvg(slide: Slide): string {
-  const headlineLines = slide.headline.split(' ').reduce<string[]>((lines, word) => {
-    const last = lines[lines.length - 1];
-    if (last && (last + ' ' + word).length <= 14) lines[lines.length - 1] = last + ' ' + word;
-    else lines.push(word);
-    return lines;
-  }, []);
+async function fetchLogoDataUri(siteUrl: string): Promise<string> {
+  const res = await fetch(`${siteUrl}/icon.png`);
+  if (!res.ok) throw new Error('Logo introuvable');
+  const buf = Buffer.from(await res.arrayBuffer());
+  return `data:image/png;base64,${buf.toString('base64')}`;
+}
 
-  const headlineSvg = headlineLines.slice(0, 3).map((line, i) =>
-    `<text x="540" y="${520 + i * 90}" text-anchor="middle" font-family="Ubuntu" font-weight="bold" font-size="76" fill="#ffffff">${escapeXml(line)}</text>`
-  ).join('');
-
-  return `
-  <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="${VIOLET}"/>
-        <stop offset="52%" stop-color="${MAGENTA}"/>
-        <stop offset="100%" stop-color="${AMBER}"/>
-      </linearGradient>
-      <radialGradient id="glow1" cx="20%" cy="15%" r="55%">
-        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-      </radialGradient>
-      <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
-        <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="${INK}" flood-opacity="0.3"/>
-      </filter>
-    </defs>
-    <rect width="${W}" height="${H}" fill="${INK}"/>
-    <rect width="${W}" height="${H}" fill="url(#g)"/>
-    <rect width="${W}" height="${H}" fill="url(#glow1)"/>
-    <rect x="70" y="420" width="940" height="440" rx="36" fill="${INK}" opacity="0.55" filter="url(#soft)"/>
-    ${headlineSvg}
-    <text x="540" y="${520 + headlineLines.length * 90 + 20}" text-anchor="middle" font-family="Ubuntu" font-size="30" fill="#ffffff" opacity="0.85">${escapeXml(slide.subtext)}</text>
-    <rect x="360" y="950" width="360" height="80" rx="40" fill="#ffffff"/>
-    <text x="540" y="1000" text-anchor="middle" font-family="Ubuntu" font-weight="bold" font-size="30" fill="${INK}">melotones.co</text>
-  </svg>`;
+async function renderSlide(slide: Slide, logoDataUri: string, fontData: ArrayBuffer): Promise<Buffer> {
+  const image = new ImageResponse(
+    (
+      <div
+        style={{
+          width: SIZE, height: SIZE, display: 'flex', flexDirection: 'column',
+          justifyContent: 'space-between', alignItems: 'center',
+          background: `linear-gradient(135deg, ${VIOLET} 0%, ${MAGENTA} 52%, ${AMBER} 100%)`,
+          padding: 70, fontFamily: 'Ubuntu',
+        }}
+      >
+        <div style={{ display: 'flex', width: 130, height: 130, borderRadius: 28, overflow: 'hidden', alignSelf: 'flex-start' }}>
+          <img src={logoDataUri} width={130} height={130} />
+        </div>
+        <div
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+            background: 'rgba(21,14,41,0.55)', borderRadius: 36, padding: '50px 60px', gap: 22,
+          }}
+        >
+          <div style={{ display: 'flex', color: '#ffffff', fontSize: 72, fontWeight: 700, lineHeight: 1.15 }}>
+            {slide.headline}
+          </div>
+          <div style={{ display: 'flex', color: 'rgba(255,255,255,0.85)', fontSize: 30 }}>
+            {slide.subtext}
+          </div>
+        </div>
+        <div style={{ display: 'flex', background: '#ffffff', borderRadius: 40, padding: '20px 46px' }}>
+          <div style={{ display: 'flex', color: INK, fontSize: 32, fontWeight: 700 }}>melotones.co</div>
+        </div>
+      </div>
+    ),
+    {
+      width: SIZE, height: SIZE,
+      fonts: [{ name: 'Ubuntu', data: fontData, weight: 700, style: 'normal' }],
+    }
+  );
+  return Buffer.from(await image.arrayBuffer());
 }
 
 export async function GET(request: Request) {
@@ -112,25 +130,18 @@ export async function GET(request: Request) {
 
   try {
     const angle = pickWeeklyAngle();
-    const slides = await generateSlides(angle);
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co';
-    const logoRes = await fetch(`${siteUrl}/icon.png`);
-    if (!logoRes.ok) throw new Error('Logo introuvable');
-    const logoBuffer = Buffer.from(await logoRes.arrayBuffer());
-    const logoResized = await sharp(logoBuffer).resize(280, 280).toBuffer();
+    const [slides, fontData, logoDataUri] = await Promise.all([
+      generateSlides(angle),
+      fetchGoogleFontTtf('Ubuntu', 700),
+      fetchLogoDataUri(process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co'),
+    ]);
 
     const dateStr = new Date().toISOString().slice(0, 10);
     const uploaded: { path: string; signedUrl: string; caption: string }[] = [];
     const attachments: { filename: string; content: string }[] = [];
 
     for (let i = 0; i < slides.length; i++) {
-      const svg = buildSvg(slides[i]);
-      const png = await sharp(Buffer.from(svg))
-        .composite([{ input: logoResized, top: 60, left: (W - 280) / 2 }])
-        .resize(W * 2, H * 2)
-        .png()
-        .toBuffer();
+      const png = await renderSlide(slides[i], logoDataUri, fontData);
 
       const path = `${dateStr}-${i + 1}.png`;
       const { error: uploadError } = await supabaseAdmin.storage
