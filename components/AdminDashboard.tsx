@@ -43,11 +43,12 @@ type EmailCampaign = {
   headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
-const TABS = ['overview', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
+const TABS = ['overview', 'analytics', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
   overview: "Vue d'ensemble",
+  analytics: 'Analytics',
   requests: 'Demandes',
   users: 'Utilisateurs',
   generations: 'Chansons',
@@ -63,9 +64,15 @@ const TAB_LABELS: Record<Tab, string> = {
 
 const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };
 
+type Analytics = {
+  periodDays: number; uniqueVisitors: number; totalPageviews: number; signupsInPeriod: number; signupRate: number | null;
+  totalUsers: number; activatedUsers: number; activationRate: number | null; payingUsers: number; conversionRate: number | null;
+};
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [generations, setGenerations] = useState<AdminGeneration[]>([]);
@@ -98,8 +105,9 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
+    const [statsRes, analyticsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
       fetch('/api/admin/stats'),
+      fetch('/api/admin/analytics'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
       fetch(`/api/admin/generations?status=${genFilter}`),
@@ -114,6 +122,7 @@ export default function AdminDashboard() {
       fetch('/api/admin/provider-balance'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
+    if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
     if (usersRes.ok) setUsers(await usersRes.json());
     if (genRes.ok) setGenerations(await genRes.json());
@@ -527,6 +536,52 @@ export default function AdminDashboard() {
             </div>
             <p className="text-[11px] text-gray-400 mt-2">À faire après chaque recharge sur MusicGPT — le compteur de générations restantes se met ensuite à jour automatiquement à chaque nouvelle chanson lancée.</p>
           </div>
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div>
+          <h2 className="text-lg font-bold mb-1 text-gray-800">Tunnel de conversion</h2>
+          <p className="text-xs text-gray-400 mb-4">Visiteurs anonymes suivis depuis l'activation du suivi — les étapes suivantes couvrent tout l'historique.</p>
+          {!analytics ? (
+            <p className="text-gray-500">Chargement…</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.uniqueVisitors}</p>
+                <p className="text-xs text-gray-500 mt-1">Visiteurs uniques ({analytics.periodDays}j)</p>
+              </div>
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.totalPageviews}</p>
+                <p className="text-xs text-gray-500 mt-1">Pages vues ({analytics.periodDays}j)</p>
+              </div>
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.signupsInPeriod}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Inscriptions ({analytics.periodDays}j)
+                  {analytics.signupRate !== null && <span className="block text-gray-400">{(analytics.signupRate * 100).toFixed(1)}% des visiteurs</span>}
+                </p>
+              </div>
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.totalUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">Utilisateurs au total</p>
+              </div>
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.activatedUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Utilisateurs activés (≥1 chanson terminée)
+                  {analytics.activationRate !== null && <span className="block text-gray-400">{(analytics.activationRate * 100).toFixed(1)}% du total</span>}
+                </p>
+              </div>
+              <div className="card">
+                <p className="text-2xl font-bold text-brand-600">{analytics.payingUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Utilisateurs payants
+                  {analytics.conversionRate !== null && <span className="block text-gray-400">{(analytics.conversionRate * 100).toFixed(1)}% du total</span>}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
