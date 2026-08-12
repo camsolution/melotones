@@ -67,8 +67,8 @@ export default function Navbar({ session: initialSession }: { session: Session |
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="btn-secondary text-sm">{t('Connexion', 'Login')}</Link>
-                  <Link href="/signup" className="btn-primary text-sm">{t('Essayer gratuitement', 'Try for free')}</Link>
+                  <Link href="/signup" className="btn-primary text-sm">{t('Créer un compte', 'Create an account')}</Link>
+                  <Link href="/login" className="btn-secondary text-sm">{t('Se connecter', 'Log in')}</Link>
                 </>
               )}
             </>
@@ -104,8 +104,8 @@ export default function Navbar({ session: initialSession }: { session: Session |
                 </>
               ) : (
                 <>
-                  <Link href="/login" onClick={closeMobile} className="block w-full btn-secondary text-center">{t('Connexion', 'Login')}</Link>
-                  <Link href="/signup" onClick={closeMobile} className="block w-full btn-primary text-center">{t('Essayer gratuitement', 'Try for free')}</Link>
+                  <Link href="/signup" onClick={closeMobile} className="block w-full btn-primary text-center">{t('Créer un compte', 'Create an account')}</Link>
+                  <Link href="/login" onClick={closeMobile} className="block w-full btn-secondary text-center">{t('Se connecter', 'Log in')}</Link>
                 </>
               )}
             </>
