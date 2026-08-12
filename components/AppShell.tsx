@@ -49,6 +49,12 @@ export default function AppShell({ session, children }: { session: Session | nul
       <Navbar session={session} />
       <main className="container mx-auto px-4 py-8 min-h-screen">{children}</main>
       <footer className="text-center text-sm text-gray-400 py-6 border-t border-gray-200">
+        <div className="flex justify-center gap-5 mb-3 text-xs font-medium">
+          <a href="https://www.tiktok.com/@melotones?lang=fr" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">TikTok</a>
+          <a href="https://www.instagram.com/melotones913/" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">Instagram</a>
+          <a href="https://web.facebook.com/profile.php?id=61593188100817" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">Facebook</a>
+          <a href="https://www.youtube.com/channel/UCCWzKz5_iUpDhUYtQ4PmFSg" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">YouTube</a>
+        </div>
         © {new Date().getFullYear()} Melotones. Fait avec ❤️ pour la musique.
       </footer>
     </>

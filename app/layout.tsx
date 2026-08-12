@@ -47,6 +47,12 @@ const jsonLd = {
       name: 'Melotones',
       url: SITE_URL,
       logo: `${SITE_URL}/icon.png`,
+      sameAs: [
+        'https://www.tiktok.com/@melotones',
+        'https://www.instagram.com/melotones913/',
+        'https://web.facebook.com/profile.php?id=61593188100817',
+        'https://www.youtube.com/channel/UCCWzKz5_iUpDhUYtQ4PmFSg',
+      ],
     },
     {
       '@type': 'WebSite',
