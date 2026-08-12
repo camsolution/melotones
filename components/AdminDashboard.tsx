@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 type PurchaseRequest = {
   id: string; user_id: string; user_email?: string; pack_id: string; credits: number; price_fcfa: number;
   payment_method: string; payment_reference: string | null; coupon_id: string | null; status: string; created_at: string;
+  provider: string | null; provider_status: string | null;
 };
 type Stats = { totalUsers: number; totalGenerations: number; pendingRequests: number; totalRevenueFcfa: number };
 type AdminUser = { id: string; email: string; created_at: string; last_sign_in_at: string | null; balance: number; is_admin: boolean; generations_count: number };
@@ -241,7 +242,11 @@ export default function AdminDashboard() {
     else alert('Erreur enregistrement.');
   };
 
-  const handleRequestAction = async (id: string, action: 'approve' | 'reject') => {
+  const handleRequestAction = async (id: string, action: 'approve' | 'reject', isPayDunyaUnconfirmed?: boolean) => {
+    if (action === 'approve' && isPayDunyaUnconfirmed) {
+      const ok = confirm("Ce paiement PayDunya n'a pas encore été confirmé comme payé par le fournisseur. Approuver manuellement créditera les Notes SANS vérifier que le client a réellement payé. Continuer ?");
+      if (!ok) return;
+    }
     setBusyId(id);
     const res = await fetch(`/api/admin/purchase-requests/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
@@ -530,19 +535,28 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-bold mb-4 text-gray-800">En attente ({pending.length})</h2>
           {pending.length === 0 ? <p className="text-gray-500 mb-8">Aucune demande en attente.</p> : (
             <div className="space-y-3 mb-8">
-              {pending.map(r => (
+              {pending.map(r => {
+                const isPayDunya = r.provider === 'paydunya';
+                const confirmedPaid = r.provider_status === 'completed';
+                return (
                 <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-gray-800">{r.user_email || r.user_id}</p>
                     <p className="text-sm text-gray-600">{r.credits} notes · {r.price_fcfa.toLocaleString('fr-FR')} FCFA · {r.payment_method}</p>
+                    {isPayDunya && (
+                      <p className={`text-xs font-semibold mt-0.5 ${confirmedPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        PayDunya — statut fournisseur : {r.provider_status || 'en attente de notification'}
+                        {confirmedPaid && ' (le webhook devrait le créditer automatiquement sous peu)'}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400">{new Date(r.created_at).toLocaleString('fr-FR')}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button disabled={busyId === r.id} onClick={() => handleRequestAction(r.id, 'approve')} className="btn-primary text-sm">Approuver</button>
+                    <button disabled={busyId === r.id} onClick={() => handleRequestAction(r.id, 'approve', isPayDunya && !confirmedPaid)} className="btn-primary text-sm">Approuver</button>
                     <button disabled={busyId === r.id} onClick={() => handleRequestAction(r.id, 'reject')} className="btn-secondary text-sm">Rejeter</button>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
           <h2 className="text-lg font-bold mb-4 text-gray-800">Historique</h2>

@@ -3,9 +3,27 @@ import { supabaseAdmin } from '@/lib/admin';
 import { confirmPayDunyaInvoice, verifyPayDunyaWebhookHash } from '@/lib/payments/paydunya';
 import { approvePurchaseRequest, rejectPurchaseRequest } from '@/lib/purchaseApproval';
 
-// PayDunya envoie l'IPN en formulaire (champ "data" contenant du JSON) selon
-// leur intégration standard — on gère aussi le cas JSON direct par sécurité,
-// le format exact devant être confirmé en sandbox une fois les clés fournies.
+// Insère une valeur dans un objet imbriqué à partir d'une clé façon PHP,
+// ex. "data[invoice][token]" -> { data: { invoice: { token: value } } }.
+function setBracketPath(obj: Record<string, any>, key: string, value: any) {
+  const segments = key.split(/\[|\]/).filter(s => s !== '');
+  let cur = obj;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (i === segments.length - 1) {
+      cur[seg] = value;
+    } else {
+      if (typeof cur[seg] !== 'object' || cur[seg] === null) cur[seg] = {};
+      cur = cur[seg];
+    }
+  }
+}
+
+// PayDunya poste son IPN en application/x-www-form-urlencoded avec des champs
+// façon PHP "data[hash]", "data[status]", "data[invoice][token]", etc. (le
+// SDK officiel les relit via $_POST['data']['hash']) — on reconstruit donc la
+// même structure imbriquée. On gère aussi, par sécurité, le cas où "data"
+// serait un champ unique contenant du JSON, ou un corps JSON direct.
 async function parseBody(request: Request): Promise<any> {
   const contentType = request.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -13,13 +31,19 @@ async function parseBody(request: Request): Promise<any> {
   }
   const form = await request.formData().catch(() => null);
   if (!form) return {};
-  const raw = form.get('data');
-  if (typeof raw === 'string') {
-    try { return JSON.parse(raw); } catch { /* fall through */ }
+
+  const rawData = form.get('data');
+  if (typeof rawData === 'string') {
+    try {
+      const parsed = JSON.parse(rawData);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch { /* pas du JSON, on tente le format à crochets ci-dessous */ }
   }
-  const obj: Record<string, any> = {};
-  form.forEach((v, k) => { obj[k] = v; });
-  return obj;
+
+  const nested: Record<string, any> = {};
+  form.forEach((v, k) => setBracketPath(nested, k, v));
+  if (nested.data && typeof nested.data === 'object') return nested.data;
+  return nested;
 }
 
 export async function POST(request: Request) {
