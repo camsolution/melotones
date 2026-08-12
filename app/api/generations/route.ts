@@ -56,9 +56,9 @@ export async function POST(request: Request) {
   if (creditError || !creditRow) {
     const { error: insertError } = await supabaseAdmin
       .from('user_credits')
-      .insert({ user_id: user.id, balance: 3 });
+      .insert({ user_id: user.id, balance: 0 });
     if (insertError) return NextResponse.json({ error: 'Failed to initialize credits' }, { status: 500 });
-    creditRow = { balance: 3, is_admin: false, language: 'fr' };
+    creditRow = { balance: 0, is_admin: false, language: 'fr' };
   }
 
   const isAdmin = creditRow.is_admin === true;

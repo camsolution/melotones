@@ -23,7 +23,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-display font-bold text-lg text-gray-800 mb-2">3. Chansons et paiement</h2>
-          <p>La génération d'un titre consomme une "Chanson", achetée via nos offres disponibles dans le menu Chansons. Les nouveaux comptes reçoivent des Chansons offertes à l'inscription. Les prix sont indiqués en FCFA avant tout paiement. Les paiements automatisés sont traités par notre prestataire PayDunya ; les paiements manuels (Wave, Orange Money, virement) sont validés par notre équipe après vérification.</p>
+          <p>La génération d'un titre consomme une "Chanson", achetée via nos offres disponibles dans le menu Chansons. Les prix sont indiqués en FCFA avant tout paiement. Les paiements automatisés sont traités par notre prestataire PayDunya ; les paiements manuels (Wave, Orange Money, virement) sont validés par notre équipe après vérification.</p>
         </section>
 
         <section>
