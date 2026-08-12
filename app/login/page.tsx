@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import AuthForm from '@/components/AuthForm';
 
+export const metadata = {
+  title: 'Connexion',
+  alternates: { canonical: '/login' },
+};
+
 export default async function Login() {
   const supabase = createServerClientWithCookies();
   const { data: { session } } = await supabase.auth.getSession();

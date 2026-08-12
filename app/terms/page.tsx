@@ -1,3 +1,9 @@
+export const metadata = {
+  title: "Conditions d'utilisation",
+  description: 'Les conditions générales d\'utilisation du service Melotones.',
+  alternates: { canonical: '/terms' },
+};
+
 export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 md:px-10 py-10 md:py-14">

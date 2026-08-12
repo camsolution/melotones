@@ -1,3 +1,9 @@
+export const metadata = {
+  title: 'Politique de confidentialité',
+  description: "Comment Melotones collecte, utilise et protège vos données personnelles.",
+  alternates: { canonical: '/privacy' },
+};
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 md:px-10 py-10 md:py-14">
