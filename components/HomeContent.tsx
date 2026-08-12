@@ -26,7 +26,7 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
           )}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-          <Link href="/signup" className="btn-primary text-lg px-8 py-4">{t('Créer un compte', 'Create an account')}</Link>
+          <Link href="/signup" className="btn-primary text-lg px-8 py-4">{t('Essayer maintenant', 'Try now')}</Link>
           <Link href="/login" className="btn-secondary text-lg px-8 py-4">{t('Se connecter', 'Log in')}</Link>
         </div>
       </section>
