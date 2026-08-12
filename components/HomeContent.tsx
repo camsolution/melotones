@@ -41,13 +41,8 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
           <Link href="#examples" className="btn-secondary text-lg px-8 py-4">{t('Écouter des exemples', 'Listen to samples')}</Link>
         </div>
         <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
-          <span className="text-brand-700 font-bold text-2xl"><UserCounter />+</span>
+          <span className="text-brand-700 font-bold text-2xl"><UserCounter /></span>
           <span>{t('utilisateurs nous font déjà confiance', 'users already trust us')}</span>
-        </div>
-        <div className="mt-3 flex justify-center items-center gap-2 text-sm text-gray-500">
-          <span className="flex items-center gap-1"><span className="text-yellow-500">★★★★★</span> 4.9 / 5</span>
-          <span>·</span>
-          <span>{t('basé sur 2 300 avis', 'based on 2,300 reviews')}</span>
         </div>
       </section>
       <section id="examples" className="py-12">

@@ -1,17 +1,21 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 interface UserCounterProps {
   animate?: boolean;
 }
 
 export default function UserCounter({ animate = true }: UserCounterProps) {
-  const [count, setCount] = useState(animate ? 0 : 179900);
-  const target = 179900;
-  const duration = 2000;
+  const [target, setTarget] = useState(0);
+  const [count, setCount] = useState(0);
+  const duration = 1200;
 
   useEffect(() => {
-    if (!animate) return;
+    fetch('/api/public-stats').then(res => res.json()).then(data => setTarget(data.totalUsers ?? 0)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!animate) { setCount(target); return; }
     const start = performance.now();
     const step = (timestamp: number) => {
       const progress = Math.min((timestamp - start) / duration, 1);
@@ -21,7 +25,7 @@ export default function UserCounter({ animate = true }: UserCounterProps) {
       }
     };
     requestAnimationFrame(step);
-  }, [animate]);
+  }, [animate, target]);
 
   return (
     <span className="tabular-nums">
