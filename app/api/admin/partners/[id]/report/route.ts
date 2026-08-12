@@ -12,9 +12,14 @@ function fmtFcfa(n: number): string {
   return n.toLocaleString('fr-FR').replace(/[  ]/g, ' ');
 }
 
+// Les emails viennent de Supabase Auth, pas garantis inoffensifs (une adresse
+// techniquement valide peut commencer par =, +, - ou @) — sans ce préfixe,
+// Excel/Sheets peut interpréter la cellule comme une formule à l'ouverture
+// du CSV (« injection de formule »). Un ' neutralise ça sans changer la valeur affichée.
 function csvEscape(value: string) {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  if (/[",\n]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`;
+  return safe;
 }
 
 function buildCsv(report: PartnerReport): string {
