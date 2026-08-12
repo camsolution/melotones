@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   const emailsById = await getEmailsByIds(rows.map((r) => r.user_id));
 
-  const header = ['Email', 'Coupon', 'Pack', 'Notes', 'Prix payé (FCFA)', 'Date'];
+  const header = ['Email', 'Coupon', 'Pack', 'Chansons', 'Prix payé (FCFA)', 'Date'];
   const lines = [header.join(',')];
   for (const r of rows) {
     lines.push([

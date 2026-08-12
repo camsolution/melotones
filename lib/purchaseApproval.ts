@@ -17,7 +17,7 @@ export async function approvePurchaseRequest(id: string, reviewedBy: string | nu
 
   // CAS avec relecture en boucle : deux approbations concurrentes pour le même
   // utilisateur (ex. deux webhooks PayDunya rapprochés pour deux achats
-  // distincts) ne doivent jamais s'écraser l'une l'autre et faire perdre des Notes.
+  // distincts) ne doivent jamais s'écraser l'une l'autre et faire perdre des Chansons.
   let credited = false;
   for (let attempt = 0; attempt < 5 && !credited; attempt++) {
     const { data: creditRow } = await supabaseAdmin.from('user_credits').select('balance').eq('user_id', req.user_id).single();
@@ -36,8 +36,8 @@ export async function approvePurchaseRequest(id: string, reviewedBy: string | nu
     if (updated) credited = true;
   }
   if (!credited) {
-    await logProviderError(null, req.user_id, `Paiement approuvé (purchase_request ${req.id}) mais échec du crédit de ${req.credits} Notes après 5 tentatives — intervention manuelle requise.`, 'paydunya');
-    return { ok: false, error: 'Échec du crédit des Notes après plusieurs tentatives (contention)', status: 500 };
+    await logProviderError(null, req.user_id, `Paiement approuvé (purchase_request ${req.id}) mais échec du crédit de ${req.credits} Chansons après 5 tentatives — intervention manuelle requise.`, 'paydunya');
+    return { ok: false, error: 'Échec du crédit des Chansons après plusieurs tentatives (contention)', status: 500 };
   }
 
   if (req.coupon_id) {

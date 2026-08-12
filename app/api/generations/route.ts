@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     }
     // Compare-and-swap: n'affecte une ligne que si le solde n'a pas changé
     // depuis la lecture ci-dessus — évite qu'une double-soumission concurrente
-    // ne fasse générer deux chansons pour une seule Note déduite.
+    // ne fasse générer deux titres pour une seule Chanson déduite.
     const { data: deducted, error: deductError } = await supabaseAdmin
       .from('user_credits')
       .update({ balance: creditRow.balance - 1 })

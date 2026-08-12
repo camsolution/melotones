@@ -77,7 +77,7 @@ export default function ProfilPage() {
         <Link href="/notes" className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 flex items-center gap-3 hover:border-brand-200 transition-colors">
           <Music2 className="w-5 h-5 text-gray-400 flex-none" />
           <div>
-            <div className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide">{t('Solde de Notes', 'Notes balance')}</div>
+            <div className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide">{t('Solde de Chansons', 'Songs balance')}</div>
             <div className="text-sm font-semibold text-gray-800 tabular-nums">{balance}</div>
           </div>
         </Link>

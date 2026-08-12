@@ -68,7 +68,7 @@ export default function StatistiquesPage() {
         <div className="rounded-[24px] border border-gray-200 bg-white shadow-xl p-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white bg-gradient-to-br from-magenta-500 to-[#FF8FB3] mb-3"><Music2 className="w-5 h-5" /></div>
           <div className="font-display font-extrabold text-3xl text-gray-800 tabular-nums">{balance}</div>
-          <div className="text-[12.5px] text-gray-500 font-semibold mt-1">{t('Solde de Notes', 'Notes balance')}</div>
+          <div className="text-[12.5px] text-gray-500 font-semibold mt-1">{t('Solde de Chansons', 'Songs balance')}</div>
         </div>
         <div className="rounded-[24px] border border-gray-200 bg-white shadow-xl p-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[#3A2400] bg-gradient-to-br from-amber-400 to-amber-200 mb-3"><Star className="w-5 h-5" /></div>

@@ -36,8 +36,8 @@ export default function NotesPage() {
           <Music2 className="w-5 h-5" strokeWidth={1.9} />
         </div>
         <div>
-          <h1 className="font-display font-extrabold text-2xl md:text-3xl text-gray-800">{t('Notes', 'Notes')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('1 Note = 1 chanson générée.', '1 Note = 1 generated song.')}</p>
+          <h1 className="font-display font-extrabold text-2xl md:text-3xl text-gray-800">{t('Chansons', 'Songs')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('1 Chanson = 1 titre généré.', '1 Song = 1 generated track.')}</p>
         </div>
       </div>
 
@@ -48,17 +48,17 @@ export default function NotesPage() {
           </div>
           <p className="font-display font-extrabold text-2xl text-gray-800 mb-2">{t('Génération illimitée', 'Unlimited generation')}</p>
           <p className="text-gray-500 text-[15px]">
-            {t('Votre compte administrateur génère des chansons sans consommer de Notes — aucun achat n\'est nécessaire.', 'Your admin account generates songs without spending Notes — no purchase needed.')}
+            {t('Votre compte administrateur génère autant de chansons que vous voulez, sans rien débiter de votre solde — aucun achat n\'est nécessaire.', 'Your admin account generates as many songs as you want, without debiting your balance — no purchase needed.')}
           </p>
         </div>
       ) : (
         <>
           <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-8 my-6 flex items-baseline gap-2">
             <span className="font-display font-extrabold text-5xl text-gray-800 tabular-nums">{balance}</span>
-            <span className="text-gray-500 font-semibold">{t('Note(s) disponible(s)', 'Note(s) available')}</span>
+            <span className="text-gray-500 font-semibold">{t('Chanson(s) disponible(s)', 'Song(s) available')}</span>
           </div>
 
-          <h2 className="font-display font-bold text-[15px] text-gray-800 mb-4">{t('Acheter des Notes', 'Buy Notes')}</h2>
+          <h2 className="font-display font-bold text-[15px] text-gray-800 mb-4">{t('Acheter des Chansons', 'Buy Songs')}</h2>
           <CreditsManager />
         </>
       )}

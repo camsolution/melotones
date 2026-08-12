@@ -67,7 +67,7 @@ export default function CreditsManager() {
         <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
         <h3 className="font-display font-bold text-lg text-gray-800">{t('Demande envoyée !', 'Request sent!')}</h3>
         <p className="text-sm text-gray-600 mt-2">
-          {t('Ta demande de', 'Your request for')} <strong>{result.credits} {t('Notes', 'Notes')}</strong> {t('a bien été reçue.', 'has been received.')}
+          {t('Ta demande de', 'Your request for')} <strong>{result.credits} {t('Chansons', 'Songs')}</strong> {t('a bien été reçue.', 'has been received.')}
         </p>
         {result.discount_applied && (
           <p className="text-sm text-emerald-700 font-semibold mt-1">
@@ -79,7 +79,7 @@ export default function CreditsManager() {
           <p className="text-sm text-gray-700 font-semibold mt-1">{result.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
         )}
         <p className="text-xs text-gray-500 mt-4">
-          {t('Tes Notes seront ajoutées dès validation du paiement, généralement sous peu.', 'Your Notes will be added once payment is confirmed, usually shortly.')}
+          {t('Tes Chansons seront ajoutées dès validation du paiement, généralement sous peu.', 'Your Songs will be added once payment is confirmed, usually shortly.')}
         </p>
         <button onClick={() => { setResult(null); setSelectedPack(null); setCouponCode(''); }} className="text-brand-600 font-semibold text-sm hover:underline mt-4">
           {t('Faire une autre demande', 'Make another request')}
@@ -98,7 +98,7 @@ export default function CreditsManager() {
             className={`rounded-2xl border-2 p-5 text-center transition-all ${selectedPack === pack.id ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50' : 'border-gray-200 hover:border-brand-200'}`}
           >
             <p className="text-2xl font-display font-extrabold text-brand-600">{pack.credits}</p>
-            <p className="text-sm text-gray-500 mb-2">{t('notes', 'credits')}</p>
+            <p className="text-sm text-gray-500 mb-2">{t('chansons', 'songs')}</p>
             <p className="text-lg font-semibold text-gray-800">{pack.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
           </button>
         ))}

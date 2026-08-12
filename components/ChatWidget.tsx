@@ -71,7 +71,7 @@ export default function ChatWidget() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-gray-50">
             {messages.length === 0 && (
               <p className="text-xs text-gray-400 text-center mt-6">
-                {t('Posez-nous une question sur les Notes, les styles, ou votre chanson.', 'Ask us anything about Notes, styles, or your song.')}
+                {t('Posez-nous une question sur les Chansons, les styles, ou votre titre.', 'Ask us anything about Songs, styles, or your track.')}
               </p>
             )}
             {messages.map(m => (

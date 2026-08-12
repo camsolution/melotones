@@ -34,7 +34,7 @@ export async function PATCH(request: Request) {
   // La ligne user_credits peut ne pas encore exister si l'utilisateur n'a jamais
   // généré de chanson (elle n'est sinon créée qu'à la première génération) — dans
   // ce cas on la crée avec les mêmes valeurs par défaut que le lazy-init de
-  // /api/generations, pour ne pas priver le nouvel utilisateur de ses 3 Notes offertes.
+  // /api/generations, pour ne pas priver le nouvel utilisateur de ses 3 Chansons offertes.
   const { data: updated } = await supabaseAdmin
     .from('user_credits')
     .update({ language })

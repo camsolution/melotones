@@ -324,7 +324,7 @@ export default function CreateForm() {
             <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
             <p className="text-gray-500 text-[15px] mb-6">
               {!isAdmin && balance !== null && balance < 1
-                ? t('Tu as besoin de 1 Note pour créer ta chanson', 'You need 1 Note to create your song')
+                ? t('Tu as besoin de 1 Chanson pour créer ton titre', 'You need 1 Song to create your track')
                 : t('Prêt à créer ta chanson', 'Ready to create your song')}
             </p>
             <div className="grid grid-cols-3 gap-3 mb-6 text-center">
@@ -345,11 +345,11 @@ export default function CreateForm() {
 
             {!isAdmin && balance !== null && balance < 1 && (
               <div className="mb-5">
-                <p className="text-sm font-bold text-gray-700 mb-2">{t('Nos offres de Notes', 'Our Notes packs')}</p>
+                <p className="text-sm font-bold text-gray-700 mb-2">{t('Nos offres de Chansons', 'Our Songs packs')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {packs.map(pack => (
                     <a key={pack.id} href="/notes" className="rounded-2xl border-2 border-gray-200 hover:border-brand-300 p-3 text-center transition-colors">
-                      <p className="text-lg font-display font-extrabold text-brand-600">{pack.credits} {t('Notes', 'Notes')}</p>
+                      <p className="text-lg font-display font-extrabold text-brand-600">{pack.credits} {t('Chansons', 'Songs')}</p>
                       <p className="text-[11px] text-gray-500 mb-1">{pack.label}</p>
                       <p className="text-sm font-semibold text-gray-800">{pack.price_fcfa.toLocaleString('fr-FR')} FCFA</p>
                     </a>
@@ -363,7 +363,7 @@ export default function CreateForm() {
               {balance === null && !isAdmin ? (
                 <button disabled className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full bg-gray-100 text-gray-400">{t('Vérification du solde…', 'Checking balance…')}</button>
               ) : !isAdmin && balance !== null && balance < 1 ? (
-                <a href="/notes" className="flex-1 text-center font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200">{t('Acheter des Notes', 'Buy Notes')}</a>
+                <a href="/notes" className="flex-1 text-center font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200">{t('Acheter des Chansons', 'Buy Songs')}</a>
               ) : (
                 <button onClick={handleSubmit} disabled={status === 'generating'} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 flex items-center justify-center gap-2 disabled:opacity-70">
                   {status === 'generating' ? (

@@ -244,7 +244,7 @@ export default function AdminDashboard() {
 
   const handleRequestAction = async (id: string, action: 'approve' | 'reject', isPayDunyaUnconfirmed?: boolean) => {
     if (action === 'approve' && isPayDunyaUnconfirmed) {
-      const ok = confirm("Ce paiement PayDunya n'a pas encore été confirmé comme payé par le fournisseur. Approuver manuellement créditera les Notes SANS vérifier que le client a réellement payé. Continuer ?");
+      const ok = confirm("Ce paiement PayDunya n'a pas encore été confirmé comme payé par le fournisseur. Approuver manuellement créditera les Chansons SANS vérifier que le client a réellement payé. Continuer ?");
       if (!ok) return;
     }
     setBusyId(id);
@@ -542,7 +542,7 @@ export default function AdminDashboard() {
                 <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-gray-800">{r.user_email || r.user_id}</p>
-                    <p className="text-sm text-gray-600">{r.credits} notes · {r.price_fcfa.toLocaleString('fr-FR')} FCFA · {r.payment_method}</p>
+                    <p className="text-sm text-gray-600">{r.credits} chansons · {r.price_fcfa.toLocaleString('fr-FR')} FCFA · {r.payment_method}</p>
                     {isPayDunya && (
                       <p className={`text-xs font-semibold mt-0.5 ${confirmedPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
                         PayDunya — statut fournisseur : {r.provider_status || 'en attente de notification'}
@@ -563,7 +563,7 @@ export default function AdminDashboard() {
           <div className="space-y-2">
             {processed.map(r => (
               <div key={r.id} className="flex items-center justify-between text-sm text-gray-600 border-b border-gray-100 py-2">
-                <span>{r.user_email || r.user_id} — {r.credits} notes — {r.price_fcfa.toLocaleString('fr-FR')} FCFA</span>
+                <span>{r.user_email || r.user_id} — {r.credits} chansons — {r.price_fcfa.toLocaleString('fr-FR')} FCFA</span>
                 <span className={r.status === 'approved' ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
                   {r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
                 </span>
@@ -643,7 +643,7 @@ export default function AdminDashboard() {
           {pricing.map(p => (
             <div key={p.id} className="card flex flex-wrap items-center gap-4">
               <span className="font-semibold text-gray-800 w-28">{p.label}</span>
-              <label className="text-sm text-gray-500">Notes
+              <label className="text-sm text-gray-500">Chansons
                 <input type="number" defaultValue={p.credits} onBlur={e => handlePricingUpdate(p.id, 'credits', Number(e.target.value))} className="ml-2 w-20 border border-gray-300 rounded px-2 py-1" />
               </label>
               <label className="text-sm text-gray-500">Prix (FCFA)

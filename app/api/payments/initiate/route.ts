@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
   const { data: creditRow } = await supabaseAdmin.from('user_credits').select('is_admin').eq('user_id', user.id).single();
   if (creditRow?.is_admin) {
-    return NextResponse.json({ error: 'Le compte administrateur génère des chansons sans consommer de Notes — aucun achat nécessaire.' }, { status: 403 });
+    return NextResponse.json({ error: 'Le compte administrateur génère des chansons sans rien débiter de son solde — aucun achat nécessaire.' }, { status: 403 });
   }
 
   const { pack_id, coupon_code } = await request.json();
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
   const result = await initiatePayDunyaPayment({
     amountFcfa: finalPrice,
-    description: `${pack.credits} Notes Melotones — ${pack.label}`,
+    description: `${pack.credits} Chansons Melotones — ${pack.label}`,
     callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
     returnUrl: `${siteUrl}/notes?status=success`,
     cancelUrl: `${siteUrl}/notes?status=cancelled`,

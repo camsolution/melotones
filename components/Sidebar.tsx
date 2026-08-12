@@ -29,7 +29,7 @@ const PRIMARY_ITEMS: NavItem[] = [
 ];
 
 const SECONDARY_ITEMS: NavItem[] = [
-  { href: '/notes', icon: Music2, fr: 'Notes', en: 'Notes', badge: 'notes' },
+  { href: '/notes', icon: Music2, fr: 'Chansons', en: 'Songs', badge: 'notes' },
   { href: '/profil', icon: User, fr: 'Profil', en: 'Profile' },
 ];
 

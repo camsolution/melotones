@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           <h2 className="font-display font-bold text-lg text-gray-800 mb-2">3. Comment nous utilisons ces données</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>Créer et gérer votre compte et vos chansons.</li>
-            <li>Traiter vos achats de Notes et vos demandes de remboursement.</li>
+            <li>Traiter vos achats de Chansons et vos demandes de remboursement.</li>
             <li>Répondre à vos demandes via notre messagerie d'assistance.</li>
             <li>Vous envoyer, si vous ne vous êtes pas désinscrit, des communications marketing occasionnelles (chaque email contient un lien de désinscription).</li>
             <li>Assurer la sécurité et le bon fonctionnement du service.</li>
