@@ -53,6 +53,49 @@ async function findInactiveCandidates(minDays: number, step: string): Promise<Ca
     .map((u) => ({ user_id: u.id, email: u.email! }));
 }
 
+// J0 : bienvenue envoyée à TOUS les nouveaux comptes (pas seulement les
+// inactifs, contrairement à J2/J7) — fenêtre de 3 jours pour couvrir le
+// délai jusqu'au prochain passage du cron quotidien.
+async function findNewSignupCandidates(step: string): Promise<Candidate[]> {
+  const cutoffMs = Date.now() - 3 * DAY_MS;
+
+  const [{ data: authUsers }, { data: adminRows }, { data: unsub }, { data: alreadySent }] = await Promise.all([
+    supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+    supabaseAdmin.from('user_credits').select('user_id, is_admin').eq('is_admin', true),
+    supabaseAdmin.from('email_unsubscribes').select('user_id'),
+    supabaseAdmin.from('onboarding_emails_sent').select('user_id').eq('step', step),
+  ]);
+
+  const adminIds = new Set((adminRows || []).map((a) => a.user_id));
+  const unsubIds = new Set((unsub || []).map((u) => u.user_id));
+  const sentIds = new Set((alreadySent || []).map((s) => s.user_id));
+
+  return (authUsers?.users || [])
+    .filter((u) =>
+      new Date(u.created_at).getTime() >= cutoffMs &&
+      !adminIds.has(u.id) && !unsubIds.has(u.id) && !sentIds.has(u.id) && !!u.email
+    )
+    .map((u) => ({ user_id: u.id, email: u.email! }));
+}
+
+function j0Email(pack: { label: string; credits: number; price_fcfa: number } | null, unsub: string) {
+  const packLine = pack
+    ? `Le pack le plus accessible pour commencer : <strong>${pack.label}</strong> — ${pack.credits} chanson${pack.credits > 1 ? 's' : ''} pour ${pack.price_fcfa.toLocaleString('fr-FR')} FCFA.`
+    : '';
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#f3f0fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:20px;overflow:hidden;">
+  <tr><td style="background:linear-gradient(135deg,#7c3aed,#f23d82);padding:26px 32px;text-align:center;"><span style="font-size:22px;font-weight:700;color:#fff;">🎵 Melotones</span></td></tr>
+  <tr><td style="padding:30px 32px;">
+    <p style="margin:0 0 14px;font-size:15px;color:#150E29;font-weight:600;">Bienvenue sur Melotones !</p>
+    <p style="margin:0 0 14px;font-size:14.5px;line-height:1.7;color:#3f3752;">Votre compte est prêt. Melotones transforme un message personnel en une chanson complète composée par IA — voix, musique, paroles — dans le style de votre choix : Afrobeat, Amapiano, Zouk, Gospel et bien d'autres.</p>
+    <p style="margin:0 0 20px;font-size:14.5px;line-height:1.7;color:#3f3752;">${packLine}</p>
+    <div style="text-align:center;"><a href="${SITE_URL}/create" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;text-decoration:none;font-weight:700;font-size:14.5px;padding:14px 32px;border-radius:12px;">Créer ma première chanson</a></div>
+  </td></tr>
+  <tr><td style="padding:20px 32px 24px;text-align:center;border-top:1px solid #f0edf7;"><p style="margin:0;font-size:12px;color:#b5abcf;"><a href="${unsub}" style="color:#8b7fa8;">Se désinscrire</a></p></td></tr>
+  </table></td></tr></table></body></html>`;
+}
+
 function j2Email(pack: { label: string; credits: number; price_fcfa: number } | null, unsub: string) {
   const packLine = pack
     ? `Le pack le plus accessible : <strong>${pack.label}</strong> — ${pack.credits} chanson${pack.credits > 1 ? 's' : ''} pour ${pack.price_fcfa.toLocaleString('fr-FR')} FCFA.`
@@ -85,8 +128,7 @@ function j7Email(unsub: string) {
   </table></td></tr></table></body></html>`;
 }
 
-async function runStep(step: 'j2' | 'j7', minDays: number, subject: string, buildHtml: (unsub: string) => string) {
-  const candidates = await findInactiveCandidates(minDays, step);
+async function runStep(candidates: Candidate[], step: string, subject: string, buildHtml: (unsub: string) => string) {
   let sent = 0;
   for (const c of candidates) {
     const unsub = unsubscribeUrl(c.user_id, SITE_URL);
@@ -107,14 +149,21 @@ export async function GET(request: Request) {
   try {
     const pack = await getCheapestPack();
 
-    const [j2, j7] = await Promise.all([
-      runStep('j2', 2, 'Votre première chanson Melotones vous attend 🎶', (u) => j2Email(pack, u)),
-      runStep('j7', 7, 'On vous garde une place sur Melotones', j7Email),
+    const [j0Candidates, j2Candidates, j7Candidates] = await Promise.all([
+      findNewSignupCandidates('j0'),
+      findInactiveCandidates(2, 'j2'),
+      findInactiveCandidates(7, 'j7'),
     ]);
 
-    const summaryText = `J2 : ${j2.sent}/${j2.candidates} envoyés. J7 : ${j7.sent}/${j7.candidates} envoyés.`;
-    await reportRun('onboarding-sequence', 'success', summaryText, { j2, j7 });
-    return NextResponse.json({ ok: true, j2, j7 });
+    const [j0, j2, j7] = await Promise.all([
+      runStep(j0Candidates, 'j0', 'Bienvenue sur Melotones 🎵', (u) => j0Email(pack, u)),
+      runStep(j2Candidates, 'j2', 'Votre première chanson Melotones vous attend 🎶', (u) => j2Email(pack, u)),
+      runStep(j7Candidates, 'j7', 'On vous garde une place sur Melotones', j7Email),
+    ]);
+
+    const summaryText = `J0 : ${j0.sent}/${j0.candidates} envoyés. J2 : ${j2.sent}/${j2.candidates} envoyés. J7 : ${j7.sent}/${j7.candidates} envoyés.`;
+    await reportRun('onboarding-sequence', 'success', summaryText, { j0, j2, j7 });
+    return NextResponse.json({ ok: true, j0, j2, j7 });
   } catch (err: any) {
     await reportRun('onboarding-sequence', 'failure', `Échec : ${err.message}`);
     return NextResponse.json({ error: err.message }, { status: 500 });

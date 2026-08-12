@@ -11,6 +11,8 @@ const guides = [
   { href: '/guide/chanson-anniversaire', title: 'Chanson personnalisée pour un anniversaire', desc: "Surprendre un proche avec une chanson d'anniversaire unique, écrite pour lui." },
   { href: '/guide/cadeau-diaspora', title: 'Envoyer un cadeau musical depuis l\'étranger', desc: "Pour la diaspora africaine : offrir un cadeau émotionnellement fort à un proche resté au pays, en quelques minutes." },
   { href: '/guide/chanson-hommage', title: 'Chanson hommage personnalisée', desc: "Rendre hommage à un être cher avec une chanson composée à partir de vos souvenirs, dans un style sincère." },
+  { href: '/guide/chanson-naissance', title: 'Chanson pour une naissance ou un baptême', desc: "Accueillir un bébé avec une chanson composée à partir de son prénom et de vos vœux." },
+  { href: '/guide/chanson-remerciement', title: 'Chanson pour dire merci', desc: "Transformer votre reconnaissance envers quelqu'un en une chanson qui prend le temps d'exister." },
 ];
 
 export default function GuideIndexPage() {
