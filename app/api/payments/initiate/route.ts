@@ -3,8 +3,6 @@ import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { initiatePayDunyaPayment, isPayDunyaConfigured } from '@/lib/payments/paydunya';
 
-const PAYMENT_METHODS = ['wave', 'orange_money', 'card', 'other', 'paydunya'];
-
 export async function POST(request: Request) {
   const supabase = createServerClientWithCookies();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -15,12 +13,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Le compte administrateur génère des chansons sans consommer de Notes — aucun achat nécessaire.' }, { status: 403 });
   }
 
-  const { pack_id, payment_method, payment_reference, coupon_code } = await request.json();
-  if (!pack_id || !payment_method) {
+  const { pack_id, coupon_code } = await request.json();
+  if (!pack_id) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
-  }
-  if (!PAYMENT_METHODS.includes(payment_method)) {
-    return NextResponse.json({ error: 'Moyen de paiement invalide' }, { status: 400 });
   }
 
   const { data: pack, error: packError } = await supabaseAdmin
@@ -54,8 +49,8 @@ export async function POST(request: Request) {
     couponId = coupon.id;
   }
 
-  if (payment_method === 'paydunya' && !isPayDunyaConfigured()) {
-    return NextResponse.json({ error: "Le paiement automatique PayDunya n'est pas encore configuré — merci de choisir un autre moyen de paiement." }, { status: 503 });
+  if (!isPayDunyaConfigured()) {
+    return NextResponse.json({ error: "Le paiement n'est pas encore configuré — merci de réessayer plus tard." }, { status: 503 });
   }
 
   const { data: reqRow, error: insertError } = await supabaseAdmin
@@ -65,11 +60,10 @@ export async function POST(request: Request) {
       pack_id: pack.id,
       credits: pack.credits,
       price_fcfa: finalPrice,
-      payment_method,
-      payment_reference: payment_reference || null,
+      payment_method: 'paydunya',
       coupon_id: couponId,
       status: 'pending',
-      provider: payment_method === 'paydunya' ? 'paydunya' : null,
+      provider: 'paydunya',
     })
     .select()
     .single();
@@ -78,37 +72,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message || 'Échec de la demande' }, { status: 500 });
   }
 
-  if (payment_method === 'paydunya') {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
-    const result = await initiatePayDunyaPayment({
-      amountFcfa: finalPrice,
-      description: `${pack.credits} Notes Melotones — ${pack.label}`,
-      callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
-      returnUrl: `${siteUrl}/notes?status=success`,
-      cancelUrl: `${siteUrl}/notes?status=cancelled`,
-      customData: { purchase_request_id: reqRow.id },
-    });
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const result = await initiatePayDunyaPayment({
+    amountFcfa: finalPrice,
+    description: `${pack.credits} Notes Melotones — ${pack.label}`,
+    callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
+    returnUrl: `${siteUrl}/notes?status=success`,
+    cancelUrl: `${siteUrl}/notes?status=cancelled`,
+    customData: { purchase_request_id: reqRow.id },
+  });
 
-    if (!result.ok) {
-      // Rien n'a été débité, la tentative d'initialisation a simplement échoué
-      // côté fournisseur — pas la peine de garder une demande fantôme.
-      await supabaseAdmin.from('purchase_requests').delete().eq('id', reqRow.id);
-      return NextResponse.json({ error: result.error }, { status: 502 });
-    }
-
-    await supabaseAdmin
-      .from('purchase_requests')
-      .update({ provider_token: result.token, provider_status: 'initiated' })
-      .eq('id', reqRow.id);
-
-    return NextResponse.json({ redirect_url: result.paymentUrl });
+  if (!result.ok) {
+    // Rien n'a été débité, la tentative d'initialisation a simplement échoué
+    // côté fournisseur — pas la peine de garder une demande fantôme.
+    await supabaseAdmin.from('purchase_requests').delete().eq('id', reqRow.id);
+    return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
-  return NextResponse.json({
-    request_id: reqRow.id,
-    credits: reqRow.credits,
-    price_fcfa: reqRow.price_fcfa,
-    original_price_fcfa: pack.price_fcfa,
-    discount_applied: couponId !== null,
-  });
+  await supabaseAdmin
+    .from('purchase_requests')
+    .update({ provider_token: result.token, provider_status: 'initiated' })
+    .eq('id', reqRow.id);
+
+  return NextResponse.json({ redirect_url: result.paymentUrl });
 }

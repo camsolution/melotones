@@ -4,20 +4,11 @@ import { Pack } from '@/lib/pricing';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CheckCircle2, Tag } from 'lucide-react';
 
-const PAYMENT_METHODS = [
-  { key: 'paydunya', label: { fr: 'Mobile Money / Carte (PayDunya)', en: 'Mobile Money / Card (PayDunya)' } },
-  { key: 'wave', label: 'Wave' },
-  { key: 'orange_money', label: 'Orange Money' },
-  { key: 'card', label: { fr: 'Carte bancaire', en: 'Card' } },
-  { key: 'other', label: { fr: 'Autre', en: 'Other' } },
-] as const;
-
 export default function CreditsManager() {
   const { t } = useLanguage();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<string>('paydunya');
-  const [paymentReference, setPaymentReference] = useState('');
+  const paymentMethod = 'paydunya';
   const [couponCode, setCouponCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -38,7 +29,6 @@ export default function CreditsManager() {
         body: JSON.stringify({
           pack_id: selectedPack,
           payment_method: paymentMethod,
-          payment_reference: paymentReference || undefined,
           coupon_code: couponCode || undefined,
         }),
       });
@@ -91,7 +81,7 @@ export default function CreditsManager() {
         <p className="text-xs text-gray-500 mt-4">
           {t('Tes Notes seront ajoutées dès validation du paiement, généralement sous peu.', 'Your Notes will be added once payment is confirmed, usually shortly.')}
         </p>
-        <button onClick={() => { setResult(null); setSelectedPack(null); setCouponCode(''); setPaymentReference(''); }} className="text-brand-600 font-semibold text-sm hover:underline mt-4">
+        <button onClick={() => { setResult(null); setSelectedPack(null); setCouponCode(''); }} className="text-brand-600 font-semibold text-sm hover:underline mt-4">
           {t('Faire une autre demande', 'Make another request')}
         </button>
       </div>
@@ -117,35 +107,6 @@ export default function CreditsManager() {
       {selectedPack && (
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-4">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Moyen de paiement', 'Payment method')}</p>
-            <div className="flex flex-wrap gap-2">
-              {PAYMENT_METHODS.map(m => (
-                <button
-                  key={m.key}
-                  onClick={() => setPaymentMethod(m.key)}
-                  className={`px-3 py-1.5 rounded-full text-[12.5px] font-semibold border-2 transition-colors ${paymentMethod === m.key ? 'border-brand-600 text-brand-700 bg-brand-50' : 'border-gray-200 text-gray-600'}`}
-                >
-                  {typeof m.label === 'string' ? m.label : t(m.label.fr, m.label.en)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {paymentMethod !== 'paydunya' && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Référence de paiement (optionnel)', 'Payment reference (optional)')}</p>
-              <input
-                type="text"
-                value={paymentReference}
-                onChange={e => setPaymentReference(e.target.value)}
-                maxLength={100}
-                placeholder={t('Ex : ID de transaction Wave', 'E.g. Wave transaction ID')}
-                className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[13.5px]"
-              />
-            </div>
-          )}
-
-          <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5" /> {t('Code promo (optionnel)', 'Promo code (optional)')}
             </p>
@@ -160,13 +121,11 @@ export default function CreditsManager() {
           </div>
 
           <p className="text-xs text-gray-500">
-            {paymentMethod === 'paydunya'
-              ? t('Paiement instantané et sécurisé — tu seras redirigé vers PayDunya pour payer par Mobile Money ou carte bancaire.', 'Instant, secure payment — you\'ll be redirected to PayDunya to pay via Mobile Money or card.')
-              : t('Paiement manuel via Wave, Orange Money ou carte — ta demande est validée par notre équipe.', 'Manual payment via Wave, Orange Money or card — your request is reviewed by our team.')}
+            {t('Paiement instantané et sécurisé — tu seras redirigé vers PayDunya pour payer par Mobile Money ou carte bancaire.', 'Instant, secure payment — you\'ll be redirected to PayDunya to pay via Mobile Money or card.')}
           </p>
           {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full">
-            {loading ? t('Envoi…', 'Sending…') : paymentMethod === 'paydunya' ? t('Payer maintenant', 'Pay now') : t('Envoyer ma demande', 'Send my request')}
+            {loading ? t('Envoi…', 'Sending…') : t('Payer maintenant', 'Pay now')}
           </button>
         </div>
       )}
