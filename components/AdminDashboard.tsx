@@ -99,6 +99,8 @@ export default function AdminDashboard() {
   const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
+  const [editBalanceValue, setEditBalanceValue] = useState('');
   const [newPartner, setNewPartner] = useState({ name: '', contact_email: '', contact_phone: '' });
   const [newCoupon, setNewCoupon] = useState<Record<string, { code: string; discount_percent: string; quota: string }>>({});
   const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
@@ -280,6 +282,29 @@ export default function AdminDashboard() {
     });
     setBusyId(null);
     if (res.ok) loadAll(); else alert('Erreur changement statut admin.');
+  };
+
+  const handleSetBalance = async (userId: string) => {
+    const value = Number(editBalanceValue);
+    if (!Number.isFinite(value) || value < 0) { alert('Solde invalide.'); return; }
+    setBusyId(userId);
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance_set: value }),
+    });
+    setBusyId(null);
+    setEditingBalanceId(null);
+    if (res.ok) loadAll(); else alert('Erreur modification crédits.');
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    if (!confirm(`Supprimer définitivement le compte "${email}" et toutes ses données (chansons, achats, conversations) ? Cette action est irréversible.`)) return;
+    setBusyId(userId);
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Erreur suppression utilisateur.');
+    }
   };
 
   const handleDeleteGeneration = async (id: string) => {
@@ -645,7 +670,24 @@ export default function AdminDashboard() {
               {users.map(u => (
                 <tr key={u.id} className="border-b border-gray-100">
                   <td className="py-2 pr-4">{u.email}</td>
-                  <td className="py-2 pr-4 font-semibold">{u.balance}</td>
+                  <td className="py-2 pr-4 font-semibold">
+                    {editingBalanceId === u.id ? (
+                      <span className="flex items-center gap-1">
+                        <input
+                          type="number" min={0} autoFocus value={editBalanceValue}
+                          onChange={e => setEditBalanceValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSetBalance(u.id); if (e.key === 'Escape') setEditingBalanceId(null); }}
+                          className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs"
+                        />
+                        <button disabled={busyId === u.id} onClick={() => handleSetBalance(u.id)} className="text-xs text-brand-600 hover:text-brand-700">OK</button>
+                        <button onClick={() => setEditingBalanceId(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => { setEditingBalanceId(u.id); setEditBalanceValue(String(u.balance)); }} className="hover:underline decoration-dotted" title="Modifier le solde">
+                        {u.balance}
+                      </button>
+                    )}
+                  </td>
                   <td className="py-2 pr-4">{u.generations_count}</td>
                   <td className="py-2 pr-4">
                     <button disabled={busyId === u.id} onClick={() => handleToggleAdmin(u.id, u.is_admin)} className={`text-xs px-2 py-1 rounded-full ${u.is_admin ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -653,10 +695,11 @@ export default function AdminDashboard() {
                     </button>
                   </td>
                   <td className="py-2 pr-4 text-gray-500">{new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
-                  <td className="py-2 pr-4 flex gap-1">
+                  <td className="py-2 pr-4 flex gap-1 flex-wrap">
                     <button disabled={busyId === u.id} onClick={() => handleCreditAdjust(u.id, 1)} className="btn-secondary text-xs px-2 py-1">+1</button>
                     <button disabled={busyId === u.id} onClick={() => handleCreditAdjust(u.id, -1)} className="btn-secondary text-xs px-2 py-1">-1</button>
                     <button disabled={busyId === u.id} onClick={() => handleCreditAdjust(u.id, 5)} className="btn-secondary text-xs px-2 py-1">+5</button>
+                    <button disabled={busyId === u.id} onClick={() => handleDeleteUser(u.id, u.email)} className="text-xs text-red-400 hover:text-red-600 px-2 py-1">Supprimer</button>
                   </td>
                 </tr>
               ))}
