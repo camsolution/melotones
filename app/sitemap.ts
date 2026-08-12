@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/guide/chanson-mariage`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE_URL}/guide/chanson-anniversaire`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE_URL}/guide/cadeau-diaspora`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${SITE_URL}/guide/chanson-hommage`, changeFrequency: 'monthly', priority: 0.7 },
   ];
 
   const { data: songs } = await supabaseAdmin

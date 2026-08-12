@@ -10,6 +10,7 @@ const guides = [
   { href: '/guide/chanson-mariage', title: 'Chanson personnalisée pour un mariage', desc: "Comment composer le morceau parfait pour des mariés, dans un style africain ou international." },
   { href: '/guide/chanson-anniversaire', title: 'Chanson personnalisée pour un anniversaire', desc: "Surprendre un proche avec une chanson d'anniversaire unique, écrite pour lui." },
   { href: '/guide/cadeau-diaspora', title: 'Envoyer un cadeau musical depuis l\'étranger', desc: "Pour la diaspora africaine : offrir un cadeau émotionnellement fort à un proche resté au pays, en quelques minutes." },
+  { href: '/guide/chanson-hommage', title: 'Chanson hommage personnalisée', desc: "Rendre hommage à un être cher avec une chanson composée à partir de vos souvenirs, dans un style sincère." },
 ];
 
 export default function GuideIndexPage() {
