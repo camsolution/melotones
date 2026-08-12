@@ -9,8 +9,8 @@ const manrope = Manrope({ subsets: ['latin'], weight: ['400', '500', '600', '700
 const unbounded = Unbounded({ subsets: ['latin'], weight: ['500', '700', '900'], variable: '--font-unbounded' });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co';
-const TITLE = 'Melotones — Transformez vos messages en chansons personnalisées';
-const DESCRIPTION = "Bienvenue sur Melotones, l'application qui transforme vos messages en chansons personnalisées uniques grâce à l'IA. Que ce soit pour un anniversaire, un mariage ou juste pour faire plaisir, créez la vôtre en quelques minutes.";
+const TITLE = 'Melotones — Chansons personnalisées composées par IA';
+const DESCRIPTION = "Melotones compose pour vous une chanson sur mesure en quelques minutes, dans un style africain ou international, pour un anniversaire, un mariage ou toute occasion qui compte.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
