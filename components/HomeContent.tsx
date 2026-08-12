@@ -2,12 +2,14 @@
 import Link from 'next/link';
 import CommunitySongs from '@/components/CommunitySongs';
 import SearchFilters from '@/components/SearchFilters';
+import Testimonials from '@/components/Testimonials';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ExampleSong } from '@/types';
+import { PublicTestimonial } from '@/lib/testimonials';
 
 // Rendu uniquement pour les visiteurs non connectés — app/page.tsx redirige
 // déjà toute session active vers /dashboard avant d'arriver ici.
-export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSong[] }) {
+export default function HomeContent({ exampleSongs, testimonials }: { exampleSongs: ExampleSong[]; testimonials: PublicTestimonial[] }) {
   const { t } = useLanguage();
 
   return (
@@ -35,6 +37,7 @@ export default function HomeContent({ exampleSongs }: { exampleSongs: ExampleSon
           <CommunitySongs songs={exampleSongs} />
         </section>
       )}
+      <Testimonials testimonials={testimonials} />
     </div>
   );
 }

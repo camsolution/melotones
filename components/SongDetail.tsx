@@ -4,6 +4,7 @@ import { Download, Share2, MessageCircle, Copy, Check, RefreshCw, Globe2 } from 
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import CoverStudio from '@/components/CoverStudio';
+import TestimonialPrompt from '@/components/TestimonialPrompt';
 
 export default function SongDetail({ song: initialSong, isOwner = false }: { song: Generation; isOwner?: boolean }) {
   const { t } = useLanguage();
@@ -122,6 +123,8 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
               onSaved={(coverUrl) => setSong((s) => ({ ...s, cover_url: coverUrl }))}
             />
           )}
+
+          {isOwner && <TestimonialPrompt generationId={song.id} />}
         </>
       ) : song.status === 'failed' ? (
         <p className="text-red-500">{song.localized_error || t('La génération a échoué. Veuillez réessayer.', 'Generation failed. Please try again.')}</p>

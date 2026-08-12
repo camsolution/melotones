@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { fetchPublicCommunitySongs } from '@/lib/communitySongs';
+import { fetchPublicTestimonials } from '@/lib/testimonials';
 import HomeContent from '@/components/HomeContent';
 
 export default async function Home() {
@@ -8,6 +9,9 @@ export default async function Home() {
   const { data: { session } } = await supabase.auth.getSession();
   if (session) redirect('/dashboard');
 
-  const exampleSongs = await fetchPublicCommunitySongs({});
-  return <HomeContent exampleSongs={exampleSongs} />;
+  const [exampleSongs, testimonials] = await Promise.all([
+    fetchPublicCommunitySongs({}),
+    fetchPublicTestimonials(),
+  ]);
+  return <HomeContent exampleSongs={exampleSongs} testimonials={testimonials} />;
 }

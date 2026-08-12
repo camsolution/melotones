@@ -43,7 +43,7 @@ type EmailCampaign = {
   headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
-const TABS = ['overview', 'analytics', 'automation', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'alerts'] as const;
+const TABS = ['overview', 'analytics', 'automation', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'testimonials', 'alerts'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -60,7 +60,13 @@ const TAB_LABELS: Record<Tab, string> = {
   refunds: 'Remboursements',
   messages: 'Messages',
   emailing: 'Emailing',
+  testimonials: 'Avis',
   alerts: 'Alertes',
+};
+
+type Testimonial = {
+  id: string; user_id: string; user_email: string; generation_id: string | null;
+  rating: number; message: string; consent_public: boolean; status: 'pending' | 'approved' | 'rejected'; created_at: string;
 };
 
 type AutomationRun = {
@@ -119,13 +125,15 @@ export default function AdminDashboard() {
   const [newCoupon, setNewCoupon] = useState<Record<string, { code: string; discount_percent: string; quota: string }>>({});
   const [newAd, setNewAd] = useState({ advertiser_name: '', media_url: '', media_type: 'image' as 'image' | 'video', target_url: '' });
   const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, analyticsRes, automationRunsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
+    const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/analytics'),
       fetch('/api/admin/automation/runs'),
+      fetch('/api/admin/testimonials'),
       fetch('/api/admin/purchase-requests'),
       fetch('/api/admin/users'),
       fetch(`/api/admin/generations?status=${genFilter}`),
@@ -142,6 +150,7 @@ export default function AdminDashboard() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
     if (automationRunsRes.ok) setAutomationRuns(await automationRunsRes.json());
+    if (testimonialsRes.ok) setTestimonials(await testimonialsRes.json());
     if (reqRes.ok) setRequests(await reqRes.json());
     if (usersRes.ok) setUsers(await usersRes.json());
     if (genRes.ok) setGenerations(await genRes.json());
@@ -322,6 +331,23 @@ export default function AdminDashboard() {
       const body = await res.json().catch(() => ({}));
       alert(body.error || 'Erreur suppression utilisateur.');
     }
+  };
+
+  const handleTestimonialAction = async (id: string, action: 'approve' | 'reject') => {
+    setBusyId(id);
+    const res = await fetch(`/api/admin/testimonials/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+    });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+    if (!confirm('Supprimer définitivement cet avis ?')) return;
+    setBusyId(id);
+    const res = await fetch(`/api/admin/testimonials/${id}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (res.ok) loadAll(); else alert('Erreur.');
   };
 
   const handleDeleteGeneration = async (id: string) => {
@@ -1168,6 +1194,41 @@ export default function AdminDashboard() {
             ))}
             {campaigns.length === 0 && <p className="text-gray-500">Aucune campagne pour le moment.</p>}
           </div>
+        </div>
+      )}
+
+      {tab === 'testimonials' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 mb-2">Avis soumis par de vrais utilisateurs après une chanson. Rien n'apparaît sur le site tant qu'un avis n'est pas approuvé ici — et même approuvé, il ne s'affiche publiquement que si l'auteur a coché le consentement.</p>
+          {testimonials.length === 0 && <p className="text-gray-500">Aucun avis pour l'instant.</p>}
+          {testimonials.map(tst => (
+            <div key={tst.id} className="card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-800">{tst.user_email}</p>
+                  <p className="text-amber-500 text-sm">{'★'.repeat(tst.rating)}{'☆'.repeat(5 - tst.rating)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    tst.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    tst.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
+                  }`}>{tst.status === 'approved' ? 'Approuvé' : tst.status === 'rejected' ? 'Rejeté' : 'En attente'}</span>
+                  {!tst.consent_public && <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600" title="L'auteur n'a pas coché l'affichage public">Pas public</span>}
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">{tst.message}</p>
+              <p className="text-xs text-gray-400 mt-1">{new Date(tst.created_at).toLocaleString('fr-FR')}</p>
+              <div className="flex gap-2 mt-3">
+                {tst.status !== 'approved' && (
+                  <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'approve')} className="btn-secondary text-xs px-3 py-1">Approuver</button>
+                )}
+                {tst.status !== 'rejected' && (
+                  <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'reject')} className="btn-secondary text-xs px-3 py-1">Rejeter</button>
+                )}
+                <button disabled={busyId === tst.id} onClick={() => handleDeleteTestimonial(tst.id)} className="text-xs text-red-400 hover:text-red-600 px-3 py-1">Supprimer</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
