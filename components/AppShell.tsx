@@ -39,7 +39,7 @@ export default function AppShell({ session, children }: { session: Session | nul
       <Navbar session={session} />
       <main className="container mx-auto px-4 py-8 min-h-screen">{children}</main>
       <footer className="text-center text-sm text-gray-400 py-6 border-t border-gray-200">
-        © 2025 Melotones. Fait avec ❤️ pour la musique.
+        © {new Date().getFullYear()} Melotones. Fait avec ❤️ pour la musique.
       </footer>
     </>
   );
