@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Melotones' }],
   alternates: { canonical: '/' },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  verification: { google: 'LJk1Byi94h5LKpxPJ9H8xsBvlMnneU5emoa_D8bkK0U' },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
