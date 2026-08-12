@@ -69,10 +69,10 @@ type AutomationRun = {
 };
 
 const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; description: string }[] = [
-  { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, envoyés à glisser dans Google Drive.' },
-  { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT.' },
-  { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Toutes les 4h', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs récentes, solde bas.' },
-  { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère de nouveaux visuels + légendes, envoyés pour publication manuelle.' },
+  { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, lien de téléchargement envoyé par email (7 jours).' },
+  { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT — envoyé par email.' },
+  { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Toutes les 4h', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs récentes, solde bas — alerte par email si besoin.' },
+  { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère 2 nouveaux visuels + légendes (angle rotatif), envoyés par email pour publication manuelle.' },
 ];
 
 const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };

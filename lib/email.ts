@@ -97,7 +97,12 @@ ${supportWhatsapp ? `
 </body></html>`;
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: { filename: string; content: string }[]
+): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) return { ok: false, error: 'Emailing non configuré (RESEND_API_KEY / RESEND_FROM_EMAIL manquants)' };
@@ -105,7 +110,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   const res = await fetch(RESEND_API_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify({ from, to, subject, html, ...(attachments ? { attachments } : {}) }),
   });
 
   if (!res.ok) return { ok: false, error: await res.text() };
