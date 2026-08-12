@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import CommunitySongs from '@/components/CommunitySongs';
 import SearchFilters from '@/components/SearchFilters';
 import Testimonials from '@/components/Testimonials';
@@ -24,6 +25,10 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
             'The app that turns your messages into unique personalized songs powered by AI. Whether for a birthday, a wedding, or just to make your family and friends smile.'
           )}
         </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+          <Link href="/signup" className="btn-primary text-lg px-8 py-4">{t('Créer un compte', 'Create an account')}</Link>
+          <Link href="/login" className="btn-secondary text-lg px-8 py-4">{t('Se connecter', 'Log in')}</Link>
+        </div>
       </section>
       {exampleSongs.length > 0 && (
         <section id="examples" className="py-12">

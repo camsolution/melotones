@@ -65,12 +65,7 @@ export default function Navbar({ session: initialSession }: { session: Session |
                   <button onClick={handleLogout} className="text-gray-700 hover:text-brand-600 transition-colors font-medium">{t('Déconnexion', 'Logout')}</button>
                   <Link href="/dashboard" className="btn-primary text-sm">{t('Mon espace', 'My space')}</Link>
                 </>
-              ) : (
-                <>
-                  <Link href="/signup" className="btn-primary text-sm">{t('Créer un compte', 'Create an account')}</Link>
-                  <Link href="/login" className="btn-secondary text-sm">{t('Se connecter', 'Log in')}</Link>
-                </>
-              )}
+              ) : null}
             </>
           )}
           <LanguageSwitcher className="ml-4" />
@@ -102,12 +97,7 @@ export default function Navbar({ session: initialSession }: { session: Session |
                   <button onClick={handleLogout} className="w-full btn-secondary">{t('Déconnexion', 'Logout')}</button>
                   <Link href="/dashboard" onClick={closeMobile} className="block w-full btn-primary text-center">{t('Mon espace', 'My space')}</Link>
                 </>
-              ) : (
-                <>
-                  <Link href="/signup" onClick={closeMobile} className="block w-full btn-primary text-center">{t('Créer un compte', 'Create an account')}</Link>
-                  <Link href="/login" onClick={closeMobile} className="block w-full btn-secondary text-center">{t('Se connecter', 'Log in')}</Link>
-                </>
-              )}
+              ) : null}
             </>
           )}
         </div>
