@@ -15,10 +15,11 @@ export async function computeAnalytics() {
   const uniqueVisitors = new Set((views || []).map((v) => v.session_id)).size;
   const totalPageviews = (views || []).length;
 
-  const { count: signupsInPeriod } = await supabaseAdmin
-    .from('user_credits')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', since);
+  // user_credits n'a pas de colonne created_at — la date d'inscription fiable
+  // est auth.users.created_at (garantie par Supabase Auth).
+  const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  const sinceMs = new Date(since).getTime();
+  const signupsInPeriod = (authUsers?.users || []).filter((u) => new Date(u.created_at).getTime() >= sinceMs).length;
 
   const activatedUsers = new Set((completedGens || []).map((g) => g.user_id)).size;
   const payingUsers = new Set((approvedPurchases || []).map((p) => p.user_id)).size;
@@ -29,8 +30,8 @@ export async function computeAnalytics() {
     periodDays: PERIOD_DAYS,
     uniqueVisitors,
     totalPageviews,
-    signupsInPeriod: signupsInPeriod ?? 0,
-    signupRate: uniqueVisitors > 0 ? signupsInPeriod! / uniqueVisitors : null,
+    signupsInPeriod,
+    signupRate: uniqueVisitors > 0 ? signupsInPeriod / uniqueVisitors : null,
     totalUsers: total,
     activatedUsers,
     activationRate: total > 0 ? activatedUsers / total : null,

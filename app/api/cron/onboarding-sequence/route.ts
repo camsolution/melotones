@@ -24,30 +24,33 @@ async function getCheapestPack() {
 
 // Comptes créés il y a >= minDays, jamais générés, jamais achetés, pas admin,
 // pas désinscrits, et n'ayant pas déjà reçu cette étape.
+// user_credits n'a pas de colonne created_at — la date d'inscription fiable
+// est auth.users.created_at (garantie par Supabase Auth).
 async function findInactiveCandidates(minDays: number, step: string): Promise<Candidate[]> {
-  const cutoff = new Date(Date.now() - minDays * DAY_MS).toISOString();
+  const cutoffMs = Date.now() - minDays * DAY_MS;
 
-  const [{ data: credits }, { data: gens }, { data: purchases }, { data: unsub }, { data: alreadySent }] = await Promise.all([
-    supabaseAdmin.from('user_credits').select('user_id, created_at, is_admin').lte('created_at', cutoff).eq('is_admin', false),
+  const [{ data: authUsers }, { data: adminRows }, { data: gens }, { data: purchases }, { data: unsub }, { data: alreadySent }] = await Promise.all([
+    supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+    supabaseAdmin.from('user_credits').select('user_id, is_admin').eq('is_admin', true),
     supabaseAdmin.from('generations').select('user_id'),
     supabaseAdmin.from('purchase_requests').select('user_id').eq('status', 'approved'),
     supabaseAdmin.from('email_unsubscribes').select('user_id'),
     supabaseAdmin.from('onboarding_emails_sent').select('user_id').eq('step', step),
   ]);
 
+  const adminIds = new Set((adminRows || []).map((a) => a.user_id));
   const generatedIds = new Set((gens || []).map((g) => g.user_id));
   const purchasedIds = new Set((purchases || []).map((p) => p.user_id));
   const unsubIds = new Set((unsub || []).map((u) => u.user_id));
   const sentIds = new Set((alreadySent || []).map((s) => s.user_id));
 
-  const eligible = (credits || []).filter((c) =>
-    !generatedIds.has(c.user_id) && !purchasedIds.has(c.user_id) && !unsubIds.has(c.user_id) && !sentIds.has(c.user_id)
-  );
-
-  if (eligible.length === 0) return [];
-  const { data: emails } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-  const emailById = new Map(emails.users.map((u) => [u.id, u.email || '']));
-  return eligible.map((c) => ({ user_id: c.user_id, email: emailById.get(c.user_id) || '' })).filter((c) => c.email);
+  return (authUsers?.users || [])
+    .filter((u) =>
+      new Date(u.created_at).getTime() <= cutoffMs &&
+      !adminIds.has(u.id) && !generatedIds.has(u.id) && !purchasedIds.has(u.id) &&
+      !unsubIds.has(u.id) && !sentIds.has(u.id) && !!u.email
+    )
+    .map((u) => ({ user_id: u.id, email: u.email! }));
 }
 
 function j2Email(pack: { label: string; credits: number; price_fcfa: number } | null, unsub: string) {
