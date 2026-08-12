@@ -71,7 +71,7 @@ type AutomationRun = {
 const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; description: string }[] = [
   { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, lien de téléchargement envoyé par email (7 jours).' },
   { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT — envoyé par email.' },
-  { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Toutes les 4h', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs récentes, solde bas — alerte par email si besoin.' },
+  { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Chaque jour 07:00 UTC', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs des dernières 24h, solde bas — alerte par email si besoin.' },
   { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère 2 nouveaux visuels + légendes (angle rotatif), envoyés par email pour publication manuelle.' },
 ];
 

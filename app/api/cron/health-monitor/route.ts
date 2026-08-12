@@ -7,7 +7,7 @@ import { sendEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
-const RECENT_ERRORS_WINDOW_MS = 4 * 60 * 60 * 1000;
+const RECENT_ERRORS_WINDOW_MS = 24 * 60 * 60 * 1000; // rythme quotidien (limite Vercel Hobby : 1 exécution/jour max)
 const LOW_BALANCE_GENERATIONS_THRESHOLD = 20;
 
 export async function GET(request: Request) {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     const issues: string[] = [];
     if (outOfCredits) issues.push('MusicGPT signale INSUFFICIENT_CREDITS récemment — coupe-circuit actif.');
     if ((pendingRefunds ?? 0) > 0) issues.push(`${pendingRefunds} remboursement(s) en attente d'approbation admin.`);
-    if ((recentErrors ?? 0) >= 5) issues.push(`${recentErrors} erreurs fournisseur dans les 4 dernières heures.`);
+    if ((recentErrors ?? 0) >= 5) issues.push(`${recentErrors} erreurs fournisseur dans les dernières 24h.`);
     if (lowBalance) issues.push(`Solde MusicGPT estimé bas : ~${providerBalance.estimatedRemainingGenerations} générations restantes.`);
 
     const details = { issues, outOfCredits, pendingRefunds: pendingRefunds ?? 0, recentProviderErrors: recentErrors ?? 0, providerBalance };
