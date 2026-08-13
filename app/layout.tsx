@@ -3,7 +3,7 @@ import { Manrope, Unbounded } from 'next/font/google';
 import AppShell from '@/components/AppShell';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 const manrope = Manrope({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-manrope' });
 const unbounded = Unbounded({ subsets: ['latin'], weight: ['500', '700', '900'], variable: '--font-unbounded' });
@@ -11,6 +11,12 @@ const unbounded = Unbounded({ subsets: ['latin'], weight: ['500', '700', '900'],
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co';
 const TITLE = 'Melotones — Chansons personnalisées composées par IA';
 const DESCRIPTION = "Melotones compose pour vous une chanson sur mesure en quelques minutes, dans un style africain ou international, pour un anniversaire, un mariage ou toute occasion qui compte.";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -78,6 +84,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="fr" className={`${manrope.variable} ${unbounded.variable}`}>
       <body className="font-sans antialiased bg-gray-50 text-gray-900">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#150E29" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <link rel="icon" href="/icon.png" />
+
         <LanguageProvider>
           <AppShell session={session}>{children}</AppShell>
         </LanguageProvider>

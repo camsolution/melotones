@@ -1,0 +1,21 @@
+{
+  "name": "Melotones \u2014 Chansons personnalis\u00e9es compos\u00e9es par IA",
+  "short_name": "Melotones",
+  "description": "Composez une chanson sur mesure en quelques minutes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#150E29",
+  "theme_color": "#150E29",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

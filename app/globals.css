@@ -45,3 +45,25 @@
     @apply bg-white/70 backdrop-blur-md border-b border-white/50 shadow-sm;
   }
 }
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-pt {
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
+  }
+  .safe-pb {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

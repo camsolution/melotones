@@ -23,7 +23,7 @@ export default function AppShell({ session, children }: { session: Session | nul
 
   if (inAppShell) {
     return (
-      <div className="md:flex min-h-screen bg-gray-50">
+      <div className="md:flex min-h-[100dvh] bg-gray-50">
         {tracker}
         <PresenceHeartbeat />
         <Sidebar session={session} />
@@ -36,7 +36,7 @@ export default function AppShell({ session, children }: { session: Session | nul
 
   if (isBare) {
     return (
-      <main className="min-h-screen bg-gray-50">
+      <main className="min-h-[100dvh] bg-gray-50">
         {tracker}
         {children}
       </main>
@@ -47,7 +47,7 @@ export default function AppShell({ session, children }: { session: Session | nul
     <>
       {tracker}
       <Navbar session={session} />
-      <main className="container mx-auto px-4 py-8 min-h-screen">{children}</main>
+      <main className="container mx-auto px-4 py-8 min-h-[100dvh]">{children}</main>
       <footer className="text-center text-sm text-gray-400 py-6 border-t border-gray-200">
         <div className="flex justify-center gap-5 mb-3 text-xs font-medium">
           <a href="https://www.tiktok.com/@melotones?lang=fr" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">TikTok</a>

@@ -40,7 +40,7 @@ export default function Navbar({ session: initialSession }: { session: Session |
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <nav className="sticky top-0 z-50 glass-nav">
+    <nav className="sticky top-0 z-50 glass-nav pt-[env(safe-area-inset-top)]">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-pink-500" onClick={closeMobile}>
           <Music className="w-7 h-7 text-brand-600" />

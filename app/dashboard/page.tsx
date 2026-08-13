@@ -200,7 +200,7 @@ export default function DashboardPage() {
                 {t('Détails', 'Details')} <ChevronRight className="w-[14px] h-[14px]" />
               </Link>
             </div>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-brand-500 to-violet-400 mb-2.5"><Disc3 className="w-4 h-4" /></div>
                 <div className="font-display font-extrabold text-xl text-gray-800 tabular-nums">{songs.length}</div>

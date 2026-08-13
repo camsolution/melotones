@@ -66,6 +66,16 @@ export default function Sidebar({ session: initialSession }: { session: Session 
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/');
 
+  useEffect(() => {
+    if (mobileOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = originalOverflow; };
+    }
+  }, [mobileOpen]);
+
+
+
   const renderItem = (item: NavItem) => {
     const Icon = item.icon;
     const active = isActive(item.href);
@@ -141,7 +151,7 @@ export default function Sidebar({ session: initialSession }: { session: Session 
       </aside>
 
       {/* Mobile top bar + drawer */}
-      <div className="md:hidden sticky top-0 z-50 flex items-center justify-between px-4 h-16 bg-stage border-b border-stage-border">
+      <div className="md:hidden sticky top-0 z-50 flex items-center justify-between px-4 h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-stage border-b border-stage-border">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-[8px] flex items-center justify-center bg-gradient-to-br from-violet-500 via-magenta-500 to-amber-400">
             <Headphones className="w-[14px] h-[14px] text-stage" strokeWidth={2} />
@@ -158,7 +168,7 @@ export default function Sidebar({ session: initialSession }: { session: Session 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="relative z-10 w-[280px] h-full flex flex-col gap-7 px-5 py-7 pt-20 bg-gradient-to-b from-stage to-[#130C24] border-r border-stage-border overflow-y-auto">
+          <div className="relative z-10 w-[280px] h-full flex flex-col gap-7 px-5 py-7 pt-[calc(5rem+env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)] bg-gradient-to-b from-stage to-[#130C24] border-r border-stage-border overflow-y-auto">
             {NavContent}
           </div>
         </div>
