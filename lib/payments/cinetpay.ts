@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
+
 const API_BASE = 'https://api-checkout.cinetpay.com/v2';
 
 export function isCinetPayConfigured(): boolean {
@@ -17,7 +19,7 @@ export async function initiateCinetPayPayment(params: {
   const siteId = process.env.CINETPAY_SITE_ID;
   if (!apikey || !siteId) return { ok: false, error: 'CinetPay non configuré' };
 
-  const res = await fetch(`${API_BASE}/payment`, {
+  const res = await fetchWithTimeout(`${API_BASE}/payment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -33,7 +35,7 @@ export async function initiateCinetPayPayment(params: {
       return_url: params.returnUrl,
       channels: 'ALL', // mobile money (Orange Money, Wave, Free Money...) + carte Visa/Mastercard
     }),
-  });
+  }, 15_000);
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.code !== '201' || !data.data?.payment_url) {
@@ -50,11 +52,11 @@ export async function verifyCinetPayTransaction(transactionId: string): Promise<
   const siteId = process.env.CINETPAY_SITE_ID;
   if (!apikey || !siteId) return { ok: false, status: 'UNKNOWN' };
 
-  const res = await fetch(`${API_BASE}/payment/check`, {
+  const res = await fetchWithTimeout(`${API_BASE}/payment/check`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apikey, site_id: siteId, transaction_id: transactionId }),
-  });
+  }, 15_000);
   const data = await res.json().catch(() => ({}));
   const status = data?.data?.status;
   if (status === 'ACCEPTED' || status === 'REFUSED' || status === 'PENDING') {

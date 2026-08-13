@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 // Cohérent avec le SDK PHP officiel PayDunya (Paydunya_Setup) : le mode
 // "live" bascule à la fois l'URL de base (api/v1 vs sandbox-api/v1) ET
@@ -37,7 +38,7 @@ export async function initiatePayDunyaPayment(params: {
 }): Promise<{ ok: true; paymentUrl: string; token: string } | { ok: false; error: string }> {
   if (!isPayDunyaConfigured()) return { ok: false, error: 'PayDunya non configuré' };
 
-  const res = await fetch(`${API_BASE}/checkout-invoice/create`, {
+  const res = await fetchWithTimeout(`${API_BASE}/checkout-invoice/create`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
@@ -53,7 +54,7 @@ export async function initiatePayDunyaPayment(params: {
       },
       custom_data: params.customData,
     }),
-  });
+  }, 15_000);
 
   const data = await res.json().catch(() => ({}));
   // PayDunya renvoie response_code "00" en cas de succès ; on compare en
@@ -81,9 +82,9 @@ export function verifyPayDunyaWebhookHash(receivedHash: string): boolean {
 export async function confirmPayDunyaInvoice(token: string): Promise<{ ok: boolean; status: 'completed' | 'pending' | 'cancelled' | 'unknown'; raw?: any }> {
   if (!isPayDunyaConfigured()) return { ok: false, status: 'unknown' };
 
-  const res = await fetch(`${API_BASE}/checkout-invoice/confirm/${encodeURIComponent(token)}`, {
+  const res = await fetchWithTimeout(`${API_BASE}/checkout-invoice/confirm/${encodeURIComponent(token)}`, {
     headers: headers(),
-  });
+  }, 15_000);
   const data = await res.json().catch(() => ({}));
   // L'orthographe exacte de l'annulation varie selon les sources PayDunya
   // ("cancelled" vs "canceled") et un statut d'échec existe aussi ("failed"/"fail") :

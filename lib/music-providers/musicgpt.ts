@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
+
 const MUSICGPT_API_BASE = 'https://api.musicgpt.com/api/public/v1';
 
 type GenderOption = 'male' | 'female' | 'duet';
@@ -26,14 +28,14 @@ export async function createMusicGPTPrediction(
     body.gender = gender;
   }
 
-  const res = await fetch(`${MUSICGPT_API_BASE}/MusicAI`, {
+  const res = await fetchWithTimeout(`${MUSICGPT_API_BASE}/MusicAI`, {
     method: 'POST',
     headers: {
       'Authorization': apiKey,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
-  });
+  }, 15_000);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -61,12 +63,18 @@ export async function checkMusicGPTPrediction(predictionId: string): Promise<Pre
   url.searchParams.set('conversionType', 'MUSIC_AI');
   url.searchParams.set('task_id', taskId);
 
-  const res = await fetch(url.toString(), {
-    headers: { 'Authorization': apiKey },
-  });
-  // Une erreur réseau/HTTP ponctuelle côté API de statut n'est pas un échec
-  // avéré de la génération elle-même — on la traite comme "toujours en cours"
-  // pour ne pas déclencher un remboursement sur un simple hoquet réseau.
+  // Une erreur réseau/HTTP ponctuelle côté API de statut (y compris un
+  // timeout si MusicGPT traîne à répondre) n'est pas un échec avéré de la
+  // génération elle-même — on la traite comme "toujours en cours" pour ne
+  // pas déclencher un remboursement sur un simple hoquet réseau, et surtout
+  // pour ne jamais laisser ce polling, appelé en boucle par chaque client en
+  // attente, bloquer une fonction serverless indéfiniment.
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url.toString(), { headers: { 'Authorization': apiKey } }, 8_000);
+  } catch (err) {
+    return { status: 'processing' };
+  }
   if (!res.ok) return { status: 'processing' };
 
   const data = await res.json();

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,13 +53,13 @@ export async function POST(request: Request) {
 // consenti à l'affichage public.
 export async function GET() {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/testimonials?select=id,rating,message,created_at&status=eq.approved&consent_public=eq.true&order=created_at.desc&limit=12`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     cache: 'no-store',
     headers: {
       apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
       Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
     },
-  });
+  }, 8_000);
   if (!res.ok) return NextResponse.json([], { status: 200 });
   const data = await res.json();
   return NextResponse.json(data);

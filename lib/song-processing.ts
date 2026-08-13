@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/admin';
 import { checkPrediction } from '@/lib/music-generator';
 import { autoRefund, requestRefundApproval, autoRejectIfPending } from '@/lib/refunds';
 import { logProviderError } from '@/lib/providerErrors';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 const STALE_THRESHOLD_MS = 15 * 60 * 1000;
 
@@ -54,7 +55,7 @@ export async function finalizeIfReady(generationId: string): Promise<'completed'
   }
 
   // prediction.status === 'completed'
-  const resp = await fetch(prediction.url);
+  const resp = await fetchWithTimeout(prediction.url, {}, 30_000);
   if (!resp.ok) {
     const reason = 'Échec du téléchargement audio depuis le fournisseur';
     const { data: updated } = await supabaseAdmin

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -107,11 +108,11 @@ export async function sendEmail(
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) return { ok: false, error: 'Emailing non configuré (RESEND_API_KEY / RESEND_FROM_EMAIL manquants)' };
 
-  const res = await fetch(RESEND_API_URL, {
+  const res = await fetchWithTimeout(RESEND_API_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to, subject, html, ...(attachments ? { attachments } : {}) }),
-  });
+  }, 10_000);
 
   if (!res.ok) return { ok: false, error: await res.text() };
   return { ok: true };
