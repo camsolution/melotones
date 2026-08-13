@@ -431,7 +431,7 @@ export default function CreateForm() {
                 ? t('Tu as besoin de 1 Chanson pour créer ton titre', 'You need 1 Song to create your track')
                 : t('Prêt à créer ta chanson', 'Ready to create your song')}
             </p>
-            <div className="grid grid-cols-4 gap-2 mb-6 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 text-center">
               <div className="p-3 rounded-2xl bg-gray-50">
                 <p className="text-2xl mb-1">{occasion ? occasionMeta[occasion] : '🎉'}</p>
                 <p className="text-[11px] font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>

@@ -68,10 +68,10 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 py-10 relative">
+    <div className="min-h-[85dvh] flex items-center justify-center px-4 py-10 relative">
       <LanguageSwitcher className="absolute top-5 right-5" />
       <div className="w-full max-w-sm">
-        <div className="rounded-[28px] border border-gray-200 bg-white shadow-xl p-8 text-center">
+        <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-xl p-8 text-center">
           <div className="flex flex-col items-center mb-6">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-brand-500 via-magenta-500 to-amber-400">
               <Headphones className="w-7 h-7 text-white" strokeWidth={1.9} />

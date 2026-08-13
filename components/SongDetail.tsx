@@ -84,7 +84,7 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
 
       {song.status === 'completed' && song.audio_url ? (
         <>
-          <audio controls src={song.audio_url} className="w-full mb-6 rounded-lg" />
+          <audio controls preload="metadata" src={song.audio_url} className="w-full mb-6 rounded-lg" />
           <div className="flex flex-wrap justify-center gap-3">
             <a href={song.audio_url} download className="btn-primary flex items-center gap-2"><Download className="w-4 h-4" /> {t('Télécharger MP3', 'Download MP3')}</a>
             <button onClick={() => { if (navigator.share) navigator.share({ title: 'Melotones', text: shareText, url: shareUrl }); else { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } }} className="btn-secondary flex items-center gap-2"><Share2 className="w-4 h-4" /> {t('Partager', 'Share')}</button>
