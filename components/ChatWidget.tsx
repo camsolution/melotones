@@ -59,7 +59,7 @@ export default function ChatWidget() {
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
       {open && (
-        <div className="w-[320px] sm:w-[360px] h-[440px] rounded-2xl shadow-2xl bg-white border border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-[calc(100vw-2rem)] max-w-[360px] h-[440px] rounded-2xl shadow-2xl bg-white border border-gray-200 flex flex-col overflow-hidden">
           <div className="bg-gradient-to-r from-brand-600 to-brand-700 text-white px-4 py-3 flex items-center justify-between flex-none">
             <div>
               <p className="font-display font-bold text-sm">{t('Assistant Melotones', 'Melotones Assistant')}</p>

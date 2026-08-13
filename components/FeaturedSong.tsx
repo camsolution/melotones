@@ -140,6 +140,7 @@ export default function FeaturedSong() {
         src={song.audio_url}
         loop
         playsInline
+        preload="auto"
         crossOrigin="anonymous"
         onCanPlay={() => setReady(true)}
         className="hidden"

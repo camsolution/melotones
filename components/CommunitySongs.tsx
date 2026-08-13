@@ -40,7 +40,7 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
             <div className="p-5">
               <h3 className="font-semibold text-lg text-gray-800">{song.title}</h3>
               <p className="text-sm text-gray-500 capitalize">{song.occasion} · {song.style}</p>
-              <audio id={`audio-${song.id}`} src={song.audio_url} className="hidden" />
+              <audio id={`audio-${song.id}`} src={song.audio_url} preload="none" className="hidden" />
             </div>
           </div>
         ))}
