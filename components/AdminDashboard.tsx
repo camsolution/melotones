@@ -611,42 +611,42 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-6">
           <div className="card !p-3 text-center relative overflow-hidden">
             <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-2xl font-bold text-green-600">{live.onlineCount}</p>
-            <p className="text-[11px] text-gray-500">En ligne</p>
+            <p className="text-xl font-bold text-green-600">{live.onlineCount}</p>
+            <p className="text-[10px] leading-tight text-gray-500">En ligne</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-orange-500">{live.processingGenerations}</p>
-            <p className="text-[11px] text-gray-500">Génération en cours</p>
+            <p className="text-xl font-bold text-orange-500">{live.processingGenerations}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Génération en cours</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-brand-600">{live.pendingPurchaseRequests}</p>
-            <p className="text-[11px] text-gray-500">Achats en attente</p>
+            <p className="text-xl font-bold text-brand-600">{live.pendingPurchaseRequests}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Achats en attente</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-brand-600">{live.pendingRefundRequests}</p>
-            <p className="text-[11px] text-gray-500">Remb. en attente</p>
+            <p className="text-xl font-bold text-brand-600">{live.pendingRefundRequests}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Remb. en attente</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-pink-600">{live.openChatConversations}</p>
-            <p className="text-[11px] text-gray-500">Chats à traiter</p>
+            <p className="text-xl font-bold text-pink-600">{live.openChatConversations}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Chats à traiter</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-green-600">{live.revenueTodayFcfa.toLocaleString('fr-FR')}</p>
-            <p className="text-[11px] text-gray-500">Revenus aujourd'hui</p>
+            <p className="text-xl font-bold text-green-600">{live.revenueTodayFcfa.toLocaleString('fr-FR')}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Revenus aujourd'hui</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className="text-2xl font-bold text-gray-700">{live.newSignupsToday}</p>
-            <p className="text-[11px] text-gray-500">Inscrits aujourd'hui</p>
+            <p className="text-xl font-bold text-gray-700">{live.newSignupsToday}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Inscrits aujourd'hui</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className={`text-2xl font-bold ${live.unacknowledgedProviderErrors > 0 ? 'text-red-600' : 'text-gray-700'}`}>{live.unacknowledgedProviderErrors}</p>
-            <p className="text-[11px] text-gray-500">Alertes fournisseur</p>
+            <p className={`text-xl font-bold ${live.unacknowledgedProviderErrors > 0 ? 'text-red-600' : 'text-gray-700'}`}>{live.unacknowledgedProviderErrors}</p>
+            <p className="text-[10px] leading-tight text-gray-500">Alertes fournisseur</p>
           </div>
           <div className="card !p-3 text-center">
-            <p className={`text-2xl font-bold ${live.providerBalanceGenerations !== null && live.providerBalanceGenerations < 20 ? 'text-red-600' : 'text-gray-700'}`}>
+            <p className={`text-xl font-bold ${live.providerBalanceGenerations !== null && live.providerBalanceGenerations < 20 ? 'text-red-600' : 'text-gray-700'}`}>
               {live.providerBalanceGenerations !== null ? live.providerBalanceGenerations : `$${live.providerBalanceUsd.toFixed(0)}`}
             </p>
-            <p className="text-[11px] text-gray-500">{live.providerBalanceGenerations !== null ? 'Générations MusicGPT restantes' : 'Solde MusicGPT (USD)'}</p>
+            <p className="text-[10px] leading-tight text-gray-500">{live.providerBalanceGenerations !== null ? 'Générations MusicGPT restantes' : 'Solde MusicGPT (USD)'}</p>
           </div>
         </div>
       )}
@@ -875,7 +875,7 @@ export default function AdminDashboard() {
             <p className="text-gray-500">Aucune exécution enregistrée pour l'instant.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
                     <th className="py-2 pr-4">Agent</th>
@@ -966,7 +966,7 @@ export default function AdminDashboard() {
               Tout supprimer
             </button>
           </div>
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
                 <th className="py-2 pr-4">

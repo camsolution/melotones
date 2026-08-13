@@ -30,7 +30,7 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
           <div key={song.id} className="card group overflow-hidden">
             <div className={`relative h-40 bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
               <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
-              <button onClick={() => {
+              <button aria-label={t('Écouter', 'Play')} onClick={() => {
                 const audio = document.getElementById(`audio-${song.id}`) as HTMLAudioElement;
                 if (audio) audio.paused ? audio.play() : audio.pause();
               }} className="relative z-10 w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">

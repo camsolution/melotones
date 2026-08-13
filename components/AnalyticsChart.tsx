@@ -48,7 +48,7 @@ export default function AnalyticsChart({ data }: { data: AnalyticsSeriesPoint[] 
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
-  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
     const x = ratio * W;
@@ -91,8 +91,8 @@ export default function AnalyticsChart({ data }: { data: AnalyticsSeriesPoint[] 
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
-        onMouseMove={handleMove}
-        onMouseLeave={() => setHoverIndex(null)}
+        onPointerMove={handleMove}
+        onPointerLeave={() => setHoverIndex(null)}
       >
         {gridLines.map(g => (
           <line
