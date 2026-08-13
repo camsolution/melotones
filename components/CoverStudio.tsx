@@ -337,7 +337,7 @@ export default function CoverStudio({
           {gifPreviewUrl && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{t('Aperçu animé', 'Animated preview')}</p>
-              <img src={gifPreviewUrl} alt="" className="w-full aspect-square rounded-2xl border border-brand-200" />
+              <img decoding="async" loading="lazy" src={gifPreviewUrl} alt="" className="w-full aspect-square rounded-2xl border border-brand-200" />
             </div>
           )}
         </div>

@@ -147,7 +147,7 @@ export default function FeaturedSong() {
       />
 
       {song.cover_url ? (
-        <img src={song.cover_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-none shadow-md" />
+        <img decoding="async" loading="lazy" src={song.cover_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-none shadow-md" />
       ) : (
         <div className="w-12 h-12 rounded-xl flex-none bg-gradient-to-br from-violet-500 via-magenta-500 to-amber-400 flex items-center justify-center text-xl">
           {styleMeta[song.style]?.emoji ?? '🎵'}

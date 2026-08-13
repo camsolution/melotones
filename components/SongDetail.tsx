@@ -73,7 +73,7 @@ export default function SongDetail({ song: initialSong, isOwner = false }: { son
   return (
     <div className="card max-w-2xl mx-auto text-center">
       {song.cover_url && (
-        <img src={song.cover_url} alt="" className="w-48 h-48 mx-auto rounded-2xl object-cover shadow-lg mb-5" />
+        <img decoding="async" loading="lazy" src={song.cover_url} alt="" className="w-48 h-48 mx-auto rounded-2xl object-cover shadow-lg mb-5" />
       )}
       <h1 className="text-3xl font-bold mb-2 text-gray-800">{t('Votre chanson est prête !', 'Your song is ready!')}</h1>
       <div className="flex flex-wrap justify-center gap-2 text-sm text-gray-600 mb-6">

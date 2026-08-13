@@ -34,7 +34,7 @@ export default function SearchFilters() {
         <label className="text-sm font-medium text-gray-600 mb-1 block">{t('Recherche', 'Search')}</label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input type="text" placeholder={t('Titre...', 'Title...')} value={q} onChange={(e) => setQ(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-300 outline-none transition" />
+          <input type="text" placeholder={t('Titre...', 'Title...')} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-300 outline-none transition" />
         </div>
       </div>
       <div className="flex-1 min-w-[180px]">

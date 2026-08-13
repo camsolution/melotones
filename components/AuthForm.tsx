@@ -137,6 +137,8 @@ export default function AuthForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
+                    inputMode="email"
                     className="w-full py-3.5 pl-11 pr-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[14.5px]"
                   />
                 </div>

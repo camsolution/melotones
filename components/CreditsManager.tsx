@@ -115,6 +115,9 @@ export default function CreditsManager() {
               value={couponCode}
               onChange={e => setCouponCode(e.target.value.toUpperCase())}
               maxLength={40}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               placeholder={t('Ex : PARTENAIRE10', 'E.g. PARTNER10')}
               className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none text-[13.5px] uppercase"
             />

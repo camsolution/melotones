@@ -264,6 +264,7 @@ export default function CreateForm() {
                   value={style ?? ''}
                   onChange={e => setStyle(e.target.value)}
                   maxLength={60}
+                  autoComplete="off"
                   autoFocus
                   placeholder={t('Décris ton style (ex : Jazz manouche, Reggaeton lent...)', 'Describe your style (e.g. Slow reggaeton, Gypsy jazz...)')}
                   className="w-full py-3 px-4 bg-white border-2 border-brand-300 rounded-xl focus:ring-2 focus:ring-brand-300 outline-none"

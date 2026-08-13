@@ -49,7 +49,7 @@ export default function AdSlot({ compact = false }: { compact?: boolean }) {
           className={`w-full ${height} object-cover transition-transform duration-500 group-hover:scale-[1.03]`}
         />
       ) : (
-        <img
+        <img decoding="async" loading="lazy"
           src={ad.media_url}
           alt={ad.advertiser_name}
           className={`w-full ${height} object-cover transition-transform duration-500 group-hover:scale-[1.03]`}
