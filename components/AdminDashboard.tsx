@@ -72,6 +72,17 @@ const TAB_LABELS: Record<Tab, string> = {
 type Testimonial = {
   id: string; user_id: string; user_email: string; generation_id: string | null;
   rating: number; message: string; consent_public: boolean; status: 'pending' | 'approved' | 'rejected'; created_at: string;
+  review_type?: string;
+  moderation_action?: string;
+  moderation_categories?: string[];
+  moderation_confidence?: number;
+  moderation_severity?: string;
+  admin_alert_severity?: string | null;
+  moderation_language?: string | null;
+  language_confidence?: number;
+  reviewed_by?: string | null;
+  admin_notes?: string | null;
+  moderation_policy_version?: string;
 };
 
 type AutomationRun = {
@@ -409,7 +420,7 @@ export default function AdminDashboard() {
     else alert('Erreur création tâche.');
   };
 
-  const handleTestimonialAction = async (id: string, action: 'approve' | 'reject') => {
+  const handleTestimonialAction = async (id: string, action: string) => {
     setBusyId(id);
     const res = await fetch(`/api/admin/testimonials/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
@@ -1470,34 +1481,53 @@ export default function AdminDashboard() {
         </div>
       )}
 
+
       {tab === 'testimonials' && (
         <div className="space-y-3">
           <p className="text-xs text-gray-500 mb-2">Avis soumis par de vrais utilisateurs après une chanson. Rien n'apparaît sur le site tant qu'un avis n'est pas approuvé ici — et même approuvé, il ne s'affiche publiquement que si l'auteur a coché le consentement.</p>
           {testimonials.length === 0 && <p className="text-gray-500">Aucun avis pour l'instant.</p>}
           {testimonials.map(tst => (
             <div key={tst.id} className="card">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm text-gray-800">{tst.user_email}</p>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-800 font-medium">{tst.user_email}</p>
                   <p className="text-amber-500 text-sm">{'★'.repeat(tst.rating)}{'☆'.repeat(5 - tst.rating)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     tst.status === 'approved' ? 'bg-green-100 text-green-700' :
                     tst.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
                   }`}>{tst.status === 'approved' ? 'Approuvé' : tst.status === 'rejected' ? 'Rejeté' : 'En attente'}</span>
-                  {!tst.consent_public && <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600" title="L'auteur n'a pas coché l'affichage public">Pas public</span>}
+                  {!tst.consent_public && <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600">Pas public</span>}
+                  {tst.moderation_action && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      tst.moderation_action === 'HIDE_AND_ALERT_ADMIN' ? 'bg-red-100 text-red-700' :
+                      tst.moderation_action === 'HUMAN_REVIEW' ? 'bg-orange-100 text-orange-700' :
+                      tst.moderation_action === 'ALLOW' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>Modération: {tst.moderation_action}</span>
+                  )}
+                  {tst.moderation_severity && <span className="text-xs text-gray-500">Sévérité: {tst.moderation_severity}</span>}
+                  {tst.moderation_confidence && <span className="text-xs text-gray-500">Confiance: {(tst.moderation_confidence * 100).toFixed(0)}%</span>}
                 </div>
               </div>
-              <p className="text-sm text-gray-600 mt-2">{tst.message}</p>
+              <p className="text-sm text-gray-600 mt-2 break-words">{tst.message}</p>
+              {tst.moderation_categories && tst.moderation_categories.length > 0 && (
+                <p className="text-xs text-gray-400 mt-1">Catégories: {tst.moderation_categories.join(', ')}</p>
+              )}
+              {tst.admin_notes && <p className="text-xs text-gray-500 mt-1 italic">Note admin: {tst.admin_notes}</p>}
               <p className="text-xs text-gray-400 mt-1">{new Date(tst.created_at).toLocaleString('fr-FR')}</p>
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-3 flex-wrap">
                 {tst.status !== 'approved' && (
                   <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'approve')} className="btn-secondary text-xs px-3 py-1">Approuver</button>
                 )}
                 {tst.status !== 'rejected' && (
                   <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'reject')} className="btn-secondary text-xs px-3 py-1">Rejeter</button>
                 )}
+                <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'hide')} className="btn-secondary text-xs px-3 py-1">Masquer</button>
+                <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'restore')} className="btn-secondary text-xs px-3 py-1">Restaurer</button>
+                <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'mark_spam')} className="btn-secondary text-xs px-3 py-1">Spam</button>
+                <button disabled={busyId === tst.id} onClick={() => handleTestimonialAction(tst.id, 'mark_abuse')} className="btn-secondary text-xs px-3 py-1">Abus</button>
                 <button disabled={busyId === tst.id} onClick={() => handleDeleteTestimonial(tst.id)} className="text-xs text-red-400 hover:text-red-600 px-3 py-1">Supprimer</button>
               </div>
             </div>
