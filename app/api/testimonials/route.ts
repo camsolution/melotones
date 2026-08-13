@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
+import { moderateUserReview } from '@/lib/reviewModeration';
+import { createHumanTask } from '@/lib/humanTasks';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,13 +38,31 @@ export async function POST(request: Request) {
     verifiedGenerationId = gen?.id ?? null;
   }
 
+  // Modération automatique avant stockage
+  const moderation = await moderateUserReview({
+    reviewType: 'PLATFORM',
+    text: trimmedMessage,
+    rating: ratingNum,
+    userId: user.id,
+    songId: verifiedGenerationId,
+  });
+
   const { error } = await supabaseAdmin.from('testimonials').insert({
     user_id: user.id,
     generation_id: verifiedGenerationId,
     rating: ratingNum,
     message: trimmedMessage,
     consent_public: consent_public === true,
-    status: 'pending',
+    status: moderation.action === 'REJECT' ? 'rejected' : 'pending',
+    review_type: 'PLATFORM',
+    moderation_action: moderation.action,
+    moderation_categories: moderation.categories,
+    moderation_confidence: moderation.confidence,
+    moderation_severity: moderation.severity,
+    admin_alert_severity: moderation.adminAlertRequired ? moderation.severity : null,
+    moderation_language: moderation.reviewLanguage,
+    language_confidence: moderation.languageConfidence,
+    moderation_policy_version: '1.0.0',
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
