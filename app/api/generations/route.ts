@@ -214,6 +214,14 @@ export async function POST(request: Request) {
     await logProviderError(generation.id, user.id, rawMessage);
     // Alerte email immédiate à l'admin si le fournisseur est à court de crédits.
     if (rawMessage === 'MUSICGPT_INSUFFICIENT_CREDITS') {
+      await supabaseAdmin
+        .from('provider_balance')
+        .upsert({
+          provider: 'musicgpt',
+          topped_up_usd: 0,
+          topped_up_at: new Date().toISOString(),
+          updated_by: user.id,
+        });
       const adminEmail = await getAdminEmail();
       if (adminEmail) {
         await sendEmail(
