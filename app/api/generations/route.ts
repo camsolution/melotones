@@ -38,20 +38,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Field too long' }, { status: 400 });
   }
 
-  const { count: recentCount } = await supabaseAdmin
-    .from('generations')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', new Date(Date.now() - GENERATION_COOLDOWN_MS).toISOString());
+  // Ces deux lectures sont indépendantes (aucune ne dépend du résultat de
+  // l'autre) — les lancer en parallèle économise un aller-retour réseau complet
+  // vers Supabase sur le chemin critique de chaque génération.
+  const [{ count: recentCount }, { data: creditRowResult, error: creditError }] = await Promise.all([
+    supabaseAdmin
+      .from('generations')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', new Date(Date.now() - GENERATION_COOLDOWN_MS).toISOString()),
+    supabaseAdmin
+      .from('user_credits')
+      .select('balance, is_admin, language')
+      .eq('user_id', user.id)
+      .single(),
+  ]);
   if ((recentCount ?? 0) > 0) {
     return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération.' }, { status: 429 });
   }
 
-  let { data: creditRow, error: creditError } = await supabaseAdmin
-    .from('user_credits')
-    .select('balance, is_admin, language')
-    .eq('user_id', user.id)
-    .single();
+  let creditRow = creditRowResult;
 
   if (creditError || !creditRow) {
     const { error: insertError } = await supabaseAdmin

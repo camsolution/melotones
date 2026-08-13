@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const CANONICAL_HOST = 'melotones.co';
 
+// Pages entièrement publiques, sans aucune dépendance à la session utilisateur
+// (ni lecture, ni redirection conditionnelle) — inutile d'y payer l'aller-retour
+// réseau vers Supabase Auth pour rafraîchir un cookie de session que la page
+// n'utilise jamais. /login et /signup en sont exclus car AuthForm s'appuie sur
+// un cookie de session à jour pour rediriger un utilisateur déjà connecté.
+const PUBLIC_NO_SESSION_PATHS = new Set(['/', '/terms', '/privacy']);
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   // Redirige tout hostname non canonique (anciens alias Vercel, domaine
@@ -15,6 +22,10 @@ export async function middleware(request: NextRequest) {
     url.protocol = 'https:';
     url.port = '';
     return NextResponse.redirect(url, 308);
+  }
+
+  if (PUBLIC_NO_SESSION_PATHS.has(new URL(request.url).pathname)) {
+    return NextResponse.next();
   }
 
   return await updateSession(request);
