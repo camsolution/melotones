@@ -95,12 +95,15 @@ export default function AuthForm() {
               <h1 className="font-display font-extrabold text-2xl text-gray-800 text-balance">{t('Bienvenue sur Melotones', 'Welcome to Melotones')}</h1>
               <p className="text-gray-400 text-sm mt-2 mb-7">{t('Connectez-vous pour créer vos chansons', 'Sign in to create your songs')}</p>
 
-              <label className="flex items-start gap-2.5 text-left mb-5 cursor-pointer select-none">
+              <label className="relative flex items-start gap-2.5 text-left mb-5 cursor-pointer select-none">
+                {!consent && (
+                  <span className="absolute -left-6 top-0 text-lg animate-nudge-point" aria-hidden="true">👉</span>
+                )}
                 <input
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => { setConsent(e.target.checked); setError(''); }}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-300 flex-shrink-0"
+                  className={`mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-300 flex-shrink-0 ${!consent ? 'animate-consent-ring' : ''}`}
                 />
                 <span className="text-xs text-gray-500 leading-snug">
                   {t('J’accepte les ', 'I accept the ')}
