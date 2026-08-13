@@ -5,6 +5,9 @@ import { generateMusic } from '@/lib/music-generator';
 import { autoRefund } from '@/lib/refunds';
 import { VOICE_LANGUAGE_NAMES, computeMessageBudget, buildPrompt } from '@/lib/promptBudget';
 import { logProviderError, localizeProviderError, isProviderOutOfCredits } from '@/lib/providerErrors';
+import { getAdminEmail } from '@/lib/cron';
+import { sendEmail } from '@/lib/email';
+
 import { classifyMessage, userFacingModerationMessage } from '@/lib/moderation';
 import { createHumanTask } from '@/lib/humanTasks';
 
@@ -209,6 +212,17 @@ export async function POST(request: Request) {
     // Toujours loggé (même pour un compte admin) pour que l'alerte remonte au
     // dashboard admin, indépendamment du remboursement.
     await logProviderError(generation.id, user.id, rawMessage);
+    // Alerte email immédiate à l'admin si le fournisseur est à court de crédits.
+    if (rawMessage === 'MUSICGPT_INSUFFICIENT_CREDITS') {
+      const adminEmail = await getAdminEmail();
+      if (adminEmail) {
+        await sendEmail(
+          adminEmail,
+          '🚨 MusicGPT : crédits épuisés',
+          `<p>Le fournisseur MusicGPT a renvoyé <strong>402 INSUFFICIENT_CREDITS</strong>.<br>Génération <code>${generation.id}</code> (user ${user.id}).<br>Rechargez les crédits sur le dashboard MusicGPT.</p>`
+        ).catch(() => {});
+      }
+    }
     // Le fournisseur a rejeté/échoué la requête de lancement : c'est une panne
     // technique avérée (pas une simple lenteur), donc remboursement automatique.
     if (!isAdmin) await autoRefund(generation.id, user.id, rawMessage);

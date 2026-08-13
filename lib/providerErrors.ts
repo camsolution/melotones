@@ -26,8 +26,12 @@ const ERROR_PATTERNS: { match: RegExp; fr: string; en: string }[] = [
     fr: 'Le fournisseur a mis trop de temps à répondre — merci de réessayer.',
     en: 'The provider took too long to respond — please try again.',
   },
+  {
+    match: /insufficient_credits|out of credits|no credits/i,
+    fr: "Notre fournisseur de musique a épuisé ses crédits. Merci de réessayer plus tard.",
+    en: 'Our music provider has run out of credits. Please try again later.',
+  },
 ];
-
 const GENERIC: Record<Lang, string> = {
   fr: "Une erreur technique est survenue chez notre fournisseur de génération musicale. Notre équipe a été automatiquement prévenue — merci de réessayer dans quelques instants.",
   en: 'A technical error occurred with our music generation provider. Our team has been automatically notified — please try again shortly.',

@@ -39,6 +39,9 @@ export async function createMusicGPTPrediction(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (err.error_code === 'INSUFFICIENT_CREDITS' || res.status === 402) {
+      throw new Error('MUSICGPT_INSUFFICIENT_CREDITS');
+    }
     throw new Error(`MusicGPT error: ${err.message || res.statusText}`);
   }
 
