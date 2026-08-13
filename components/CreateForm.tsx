@@ -20,15 +20,20 @@ const occasions = Object.keys(occasionTranslations);
 const styles = Object.keys(styleTranslations);
 
 type Gender = 'male' | 'female' | 'duet';
-const STEPS = ['occasion', 'style', 'voice', 'message', 'review'] as const;
+const STEPS = ['occasion', 'style', 'voice', 'message', 'language', 'review'] as const;
 type Step = typeof STEPS[number];
 const STEP_LABELS: Record<Step, { fr: string; en: string }> = {
   occasion: { fr: 'Occasion', en: 'Occasion' },
   style: { fr: 'Style', en: 'Style' },
   voice: { fr: 'Voix', en: 'Voice' },
   message: { fr: 'Message', en: 'Message' },
+  language: { fr: 'Langue', en: 'Language' },
   review: { fr: 'Récap', en: 'Review' },
 };
+
+type NameUsage = 'none' | 'once' | 'chorus' | 'multiple';
+type DetectedLanguage = { language: string; label: string; confidence: number };
+type DetectedPerson = { name: string; confidence: number };
 
 export default function CreateForm() {
   const { lang, t } = useLanguage();
@@ -45,6 +50,12 @@ export default function CreateForm() {
   const [lyricLoading, setLyricLoading] = useState(false);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [showCustomStyle, setShowCustomStyle] = useState(false);
+  const [songLanguage, setSongLanguage] = useState<'fr' | 'en' | null>(null);
+  const [detectedLang, setDetectedLang] = useState<DetectedLanguage | null>(null);
+  const [detectedPersons, setDetectedPersons] = useState<DetectedPerson[]>([]);
+  const [detectLoading, setDetectLoading] = useState(false);
+  const [nameUsage, setNameUsage] = useState<NameUsage>('none');
+  const [selectedPersonName, setSelectedPersonName] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,6 +101,23 @@ export default function CreateForm() {
 
   const goNext = () => setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
   const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
+
+  // Détection langue/personne : simple aide à la saisie, jamais bloquante — un
+  // échec laisse juste les listes vides et le choix manuel/compte prévaut
+  // (voir lib/languageDetection.ts, lib/personDetection.ts).
+  useEffect(() => {
+    if (step !== 'language' || !message) return;
+    setDetectLoading(true);
+    Promise.all([
+      fetch('/api/detect-language', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: message }) }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/detect-person', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: message }) }).then(r => r.json()).catch(() => ({})),
+    ]).then(([langRes, personRes]) => {
+      setDetectedLang(langRes?.detection ?? null);
+      setDetectedPersons(Array.isArray(personRes?.persons) ? personRes.persons : []);
+    }).finally(() => setDetectLoading(false));
+  }, [step]);
+
+  const effectiveSongLanguage = songLanguage ?? lang;
 
   const toggleMic = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -145,7 +173,12 @@ export default function CreateForm() {
       const res = await fetch('/api/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ occasion, style, custom_message: message, voice_gender: gender }),
+        body: JSON.stringify({
+          occasion, style, custom_message: message, voice_gender: gender,
+          song_language: effectiveSongLanguage,
+          approved_names: selectedPersonName && nameUsage !== 'none' ? [selectedPersonName] : [],
+          name_usage: nameUsage,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -319,6 +352,77 @@ export default function CreateForm() {
           </div>
         )}
 
+        {step === 'language' && (
+          <div>
+            <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Langue de la chanson', 'Song language')}</h2>
+            <p className="text-gray-500 text-[15px] mb-6">{t('La voix chantera dans cette langue', 'The voice will sing in this language')}</p>
+
+            {detectLoading && (
+              <p className="text-xs text-gray-400 mb-3">{t('Analyse en cours…', 'Analyzing…')}</p>
+            )}
+            {!detectLoading && detectedLang && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mb-4 text-sm">
+                <span className="text-gray-600">{t('Langue détectée :', 'Detected language:')} <strong>{detectedLang.label}</strong></span>
+                {(detectedLang.language === 'fr' || detectedLang.language === 'en') && (
+                  <label className="flex items-center gap-2 text-xs font-semibold text-brand-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={songLanguage === detectedLang.language}
+                      onChange={e => setSongLanguage(e.target.checked ? (detectedLang.language as 'fr' | 'en') : null)}
+                    />
+                    {t('Utiliser la langue détectée', 'Use detected language')}
+                  </label>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {(['fr', 'en'] as const).map(code => (
+                <button
+                  key={code}
+                  onClick={() => setSongLanguage(code)}
+                  className={`flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all ${effectiveSongLanguage === code ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50' : 'border-gray-200 hover:border-brand-200'}`}
+                >
+                  <span className="text-2xl">{code === 'fr' ? '🇫🇷' : '🇬🇧'}</span>
+                  <span className="text-sm font-semibold text-gray-700">{code === 'fr' ? 'Français' : 'English'}</span>
+                </button>
+              ))}
+            </div>
+
+            {!detectLoading && detectedPersons.length > 0 && (
+              <div className="mb-6 border-t border-gray-100 pt-5">
+                <p className="text-sm font-bold text-gray-700 mb-1">
+                  {t('Nous avons détecté un prénom dans ton idée', 'We detected a name in your idea')} : <span className="text-brand-600">{detectedPersons[0].name}</span>
+                </p>
+                <p className="text-xs text-gray-400 mb-3">{t('Veux-tu le chanter dans les paroles ?', 'Do you want it sung in the lyrics?')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'none' as NameUsage, fr: 'Ne pas inclure', en: 'Don\'t include' },
+                    { key: 'once' as NameUsage, fr: 'Une fois', en: 'Once' },
+                    { key: 'chorus' as NameUsage, fr: 'Dans le refrain', en: 'In the chorus' },
+                    { key: 'multiple' as NameUsage, fr: 'Plusieurs fois', en: 'Multiple times' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => { setNameUsage(opt.key); setSelectedPersonName(opt.key === 'none' ? null : detectedPersons[0].name); }}
+                      className={`py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${nameUsage === opt.key ? 'border-brand-600 bg-gradient-to-br from-brand-50 to-magenta-50 text-brand-700' : 'border-gray-200 text-gray-600 hover:border-brand-200'}`}
+                    >
+                      {t(opt.fr, opt.en)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={goBack} className="w-12 h-12 flex-none flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={goNext} className="flex-1 font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform">
+                {t('Continuer', 'Continue')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'review' && (
           <div>
             <h2 className="font-display font-extrabold text-2xl text-gray-800 mb-1">{t('Plus qu\'une étape ! 🎉', 'One more step! 🎉')}</h2>
@@ -327,20 +431,29 @@ export default function CreateForm() {
                 ? t('Tu as besoin de 1 Chanson pour créer ton titre', 'You need 1 Song to create your track')
                 : t('Prêt à créer ta chanson', 'Ready to create your song')}
             </p>
-            <div className="grid grid-cols-3 gap-3 mb-6 text-center">
-              <div className="p-4 rounded-2xl bg-gray-50">
+            <div className="grid grid-cols-4 gap-2 mb-6 text-center">
+              <div className="p-3 rounded-2xl bg-gray-50">
                 <p className="text-2xl mb-1">{occasion ? occasionMeta[occasion] : '🎉'}</p>
-                <p className="text-xs font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>
+                <p className="text-[11px] font-semibold text-gray-700 capitalize">{occasion ? getOccasionLabel(occasion) : ''}</p>
               </div>
-              <div className="p-4 rounded-2xl bg-gray-50">
+              <div className="p-3 rounded-2xl bg-gray-50">
                 <p className="text-2xl mb-1">{style ? styleMeta[style]?.emoji ?? '🎵' : '🎵'}</p>
-                <p className="text-xs font-semibold text-gray-700 capitalize">{style ? getStyleLabel(style) : ''}</p>
+                <p className="text-[11px] font-semibold text-gray-700 capitalize">{style ? getStyleLabel(style) : ''}</p>
               </div>
-              <div className="p-4 rounded-2xl bg-gray-50">
+              <div className="p-3 rounded-2xl bg-gray-50">
                 <p className="text-2xl mb-1">{gender ? genderMeta[gender].emoji : '🎤'}</p>
-                <p className="text-xs font-semibold text-gray-700">{gender ? t(genderMeta[gender].fr, genderMeta[gender].en) : ''}</p>
+                <p className="text-[11px] font-semibold text-gray-700">{gender ? t(genderMeta[gender].fr, genderMeta[gender].en) : ''}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-gray-50">
+                <p className="text-2xl mb-1">{effectiveSongLanguage === 'fr' ? '🇫🇷' : '🇬🇧'}</p>
+                <p className="text-[11px] font-semibold text-gray-700">{effectiveSongLanguage === 'fr' ? 'Français' : 'English'}</p>
               </div>
             </div>
+            {selectedPersonName && nameUsage !== 'none' && (
+              <p className="text-center text-xs text-brand-600 font-semibold mb-4">
+                🎤 {t(`"${selectedPersonName}" sera chanté(e)`, `"${selectedPersonName}" will be sung`)}
+              </p>
+            )}
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
             {!isAdmin && balance !== null && balance < 1 && (

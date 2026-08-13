@@ -5,9 +5,20 @@ import { generateMusic } from '@/lib/music-generator';
 import { autoRefund } from '@/lib/refunds';
 import { VOICE_LANGUAGE_NAMES, computeMessageBudget, buildPrompt } from '@/lib/promptBudget';
 import { logProviderError, localizeProviderError, isProviderOutOfCredits } from '@/lib/providerErrors';
+import { classifyMessage, userFacingModerationMessage } from '@/lib/moderation';
+import { createHumanTask } from '@/lib/humanTasks';
 
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
+
+// Chaque fonctionnalité reste désactivable indépendamment sans casser le
+// flux historique (occasion/style/message/voix) — voir le rapport d'audit
+// pour le détail des fallbacks de chacune.
+const FLAGS = {
+  languageSelection: process.env.MELOTONES_LANGUAGE_SELECTION !== 'false',
+  personDetection: process.env.MELOTONES_PERSON_DETECTION !== 'false',
+  moderationV2: process.env.MELOTONES_MODERATION_V2 !== 'false',
+};
 
 async function refundCredit(userId: string) {
   const { data: fresh } = await supabaseAdmin.from('user_credits').select('balance').eq('user_id', userId).single();
@@ -26,7 +37,7 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await authClient.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { occasion, style, custom_message, voice_gender } = await request.json();
+  const { occasion, style, custom_message, voice_gender, song_language, approved_names, name_usage } = await request.json();
   if (!occasion || !style || !custom_message) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
@@ -79,11 +90,20 @@ export async function POST(request: Request) {
     }, { status: 503 });
   }
 
+  // Priorité de langue (section 12 du rapport d'audit) : sélection manuelle de
+  // l'utilisateur pour CETTE chanson > langue du compte. La détection automatique
+  // est déjà résolue côté client avant l'envoi (voir /api/detect-language) — elle
+  // n'arrive ici que si l'utilisateur l'a confirmée, auquel cas elle est déjà dans
+  // song_language et traitée comme une sélection manuelle.
+  const requestedLanguage = song_language === 'fr' || song_language === 'en' ? song_language : null;
+  const finalSongLanguage: 'fr' | 'en' =
+    FLAGS.languageSelection && requestedLanguage ? requestedLanguage : (creditRow.language === 'en' ? 'en' : 'fr');
+
   // La longueur autorisée pour le message dépend du style choisi (les descriptifs
   // de style les plus détaillés laissent moins de place avant la limite de
   // MusicGPT) — on bloque ici plutôt que de tronquer silencieusement, pour rester
   // cohérent avec la jauge affichée à l'utilisateur au moment de la saisie.
-  const voiceLanguage = VOICE_LANGUAGE_NAMES[creditRow.language] || 'French';
+  const voiceLanguage = VOICE_LANGUAGE_NAMES[finalSongLanguage] || 'French';
   const { min: minMessageLength, max: maxMessageLength } = computeMessageBudget(style, occasion, voiceLanguage);
   if (String(custom_message).length < minMessageLength || String(custom_message).length > maxMessageLength) {
     return NextResponse.json({
@@ -91,6 +111,22 @@ export async function POST(request: Request) {
       min: minMessageLength,
       max: maxMessageLength,
     }, { status: 400 });
+  }
+
+  // Modération (section 23 du rapport d'audit) : classification avant toute
+  // charge de crédit, fail-open — une panne du service de modération ne bloque
+  // jamais la génération (voir lib/moderation.ts). BLOCK/ASK_REWRITE arrêtent
+  // ici, sans frais ; HUMAN_REVIEW laisse la génération se poursuivre et se
+  // contente de signaler l'événement à l'admin (voir plus bas, après l'insert).
+  let moderationCategory: 'ALLOW' | 'ALLOW_WITH_WARNING' | 'ASK_REWRITE' | 'HUMAN_REVIEW' | 'BLOCK' = 'ALLOW';
+  let moderationReason = '';
+  if (FLAGS.moderationV2) {
+    const moderation = await classifyMessage(String(custom_message));
+    moderationCategory = moderation.category;
+    moderationReason = moderation.reason;
+    if (moderationCategory === 'BLOCK' || moderationCategory === 'ASK_REWRITE') {
+      return NextResponse.json({ error: userFacingModerationMessage(moderationCategory, finalSongLanguage) }, { status: 400 });
+    }
   }
 
   if (!isAdmin) {
@@ -112,9 +148,28 @@ export async function POST(request: Request) {
     }
   }
 
+  // Prénom validé par l'utilisateur (section 20-22) : un seul nom retenu pour
+  // rester dans le budget de caractères MusicGPT (voir lib/promptBudget.ts) —
+  // buildPrompt laisse de toute façon tomber cette clause plutôt que dépasser
+  // la limite si le style/message ne laissent pas assez de marge.
+  const approvedName = FLAGS.personDetection && typeof approved_names?.[0] === 'string'
+    ? String(approved_names[0]).trim().slice(0, 60)
+    : '';
+  const resolvedNameUsage = approvedName && (name_usage === 'chorus' || name_usage === 'multiple' || name_usage === 'once')
+    ? name_usage
+    : (approvedName ? 'once' : 'none');
+
   const { data: generation, error: insertError } = await supabaseAdmin
     .from('generations')
-    .insert({ user_id: user.id, occasion, style, custom_message, voice_gender: voice_gender || null, status: 'queued' })
+    .insert({
+      user_id: user.id, occasion, style, custom_message, voice_gender: voice_gender || null, status: 'queued',
+      song_language: finalSongLanguage,
+      language_source: FLAGS.languageSelection && requestedLanguage ? 'user_selection' : 'account_default',
+      approved_names: approvedName ? [approvedName] : [],
+      name_usage: resolvedNameUsage,
+      moderation_category: moderationCategory,
+      moderation_reason: moderationReason || null,
+    })
     .select()
     .single();
 
@@ -123,8 +178,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
   }
 
+  if (moderationCategory === 'HUMAN_REVIEW') {
+    await createHumanTask(
+      `Modération à examiner — génération ${generation.id}`,
+      `Contenu signalé (${moderationReason || 'raison non précisée'}) pour l'occasion "${occasion}" : "${String(custom_message).slice(0, 200)}"`,
+      'moderation'
+    ).catch(() => {});
+  }
+
   try {
-    const prompt = buildPrompt(style, occasion, voiceLanguage, custom_message);
+    const nameDirective = approvedName
+      ? `Include the name "${approvedName}"${resolvedNameUsage === 'chorus' ? ' repeated in the chorus' : resolvedNameUsage === 'multiple' ? ' mentioned multiple times' : ' once'}.`
+      : '';
+
+    const prompt = buildPrompt(style, occasion, voiceLanguage, custom_message, nameDirective);
 
     const genderParam = voice_gender === 'male' || voice_gender === 'female' || voice_gender === 'duet' ? voice_gender : undefined;
     const { predictionId } = await generateMusic(prompt, user.id, genderParam);

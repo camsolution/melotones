@@ -1,6 +1,8 @@
 import { createServerClientWithCookies } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,20 +22,21 @@ export async function POST(request: Request) {
     Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
     'Content-Type': 'application/json',
   };
-  const logRes = await fetch(
+  const logRes = await fetchWithTimeout(
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log?select=last_called_at&user_id=eq.${user.id}`,
-    { headers: restHeaders, cache: 'no-store' }
+    { headers: restHeaders, cache: 'no-store' },
+    8_000
   );
   const logRows = logRes.ok ? await logRes.json() : [];
   if (logRows[0] && Date.now() - new Date(logRows[0].last_called_at).getTime() < COOLDOWN_MS) {
     return NextResponse.json({ error: 'Merci de patienter quelques secondes avant une nouvelle génération de paroles.' }, { status: 429 });
   }
-  await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log`, {
+  await fetchWithTimeout(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lyrics_generation_log`, {
     method: 'POST',
     headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({ user_id: user.id, last_called_at: new Date().toISOString() }),
     cache: 'no-store',
-  });
+  }, 8_000);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -48,10 +51,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Field too long' }, { status: 400 });
   }
 
+  // La langue de cette suggestion doit suivre la langue du compte (celle qui
+  // pilotera aussi la voix chantée) plutôt qu'être figée — sinon un compte EN
+  // reçoit un texte français qu'il devra lui-même retraduire.
+  const { data: creditRow } = await supabaseAdmin
+    .from('user_credits')
+    .select('language')
+    .eq('user_id', user.id)
+    .single();
+  const language: 'fr' | 'en' = creditRow?.language === 'en' ? 'en' : 'fr';
+
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
-  const prompt = `Écris un court texte (3-4 phrases, en français) décrivant le contenu émotionnel d'une chanson personnalisée pour l'occasion "${occasion}" dans un style musical "${style}". ${hint ? `Inspire-toi de cet indice donné par l'utilisateur : "${hint}".` : ''} Le texte doit être chaleureux, précis, mentionner des émotions et suggestions de contenu (sans écrire de vraies paroles avec rimes, juste une description). Réponds uniquement avec le texte, sans préambule.`;
+  const prompt = language === 'en'
+    ? `Write a short text (3-4 sentences, in English) describing the emotional content of a personalized song for the occasion "${occasion}" in a "${style}" musical style. ${hint ? `Draw inspiration from this hint given by the user: "${hint}".` : ''} The text should be warm, specific, mention emotions and content suggestions (without writing actual rhyming lyrics, just a description). Reply with only the text, no preamble.`
+    : `Écris un court texte (3-4 phrases, en français) décrivant le contenu émotionnel d'une chanson personnalisée pour l'occasion "${occasion}" dans un style musical "${style}". ${hint ? `Inspire-toi de cet indice donné par l'utilisateur : "${hint}".` : ''} Le texte doit être chaleureux, précis, mentionner des émotions et suggestions de contenu (sans écrire de vraies paroles avec rimes, juste une description). Réponds uniquement avec le texte, sans préambule.`;
 
   try {
     const result = await model.generateContent(prompt);

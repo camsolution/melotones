@@ -12,8 +12,8 @@ export function enrichStyle(style: string): string {
   return styleDescriptors[styleKey] || style;
 }
 
-function scaffold(enrichedStyle: string, occasion: string, voiceLanguage: string, message: string): string {
-  return `A ${enrichedStyle} song for ${occasion}, sung entirely in ${voiceLanguage}.${message ? ` About: ${message}` : ''}`;
+function scaffold(enrichedStyle: string, occasion: string, voiceLanguage: string, message: string, nameDirective: string = ''): string {
+  return `A ${enrichedStyle} song for ${occasion}, sung entirely in ${voiceLanguage}.${message ? ` About: ${message}` : ''}${nameDirective ? ` ${nameDirective}` : ''}`;
 }
 
 // Longueur maximale que le message libre peut occuper pour ce style/occasion/langue
@@ -37,20 +37,27 @@ function truncateToWordBoundary(text: string, maxLength: number): string {
 // Filet de sécurité : avec la validation min/max en amont, ce cas ne devrait
 // quasiment plus se produire, mais on garde la troncature pour ne jamais envoyer
 // à MusicGPT un prompt qui dépasserait sa limite.
-export function buildPrompt(style: string, occasion: string, voiceLanguage: string, message: string): string {
+export function buildPrompt(style: string, occasion: string, voiceLanguage: string, message: string, nameDirective: string = ''): string {
   let styleText = enrichStyle(style);
   let messageText = message;
-  let prompt = scaffold(styleText, occasion, voiceLanguage, messageText);
+  let prompt = scaffold(styleText, occasion, voiceLanguage, messageText, nameDirective);
 
   if (prompt.length > PROMPT_MAX_LENGTH) {
     const overBy = prompt.length - PROMPT_MAX_LENGTH;
     messageText = truncateToWordBoundary(messageText, messageText.length - overBy);
-    prompt = scaffold(styleText, occasion, voiceLanguage, messageText);
+    prompt = scaffold(styleText, occasion, voiceLanguage, messageText, nameDirective);
   }
   if (prompt.length > PROMPT_MAX_LENGTH) {
     const overBy = prompt.length - PROMPT_MAX_LENGTH;
     styleText = truncateToWordBoundary(styleText, styleText.length - overBy);
-    prompt = scaffold(styleText, occasion, voiceLanguage, messageText);
+    prompt = scaffold(styleText, occasion, voiceLanguage, messageText, nameDirective);
+  }
+  // Filet ultime : si même après troncature du style le prompt dépasse encore
+  // la limite, on abandonne le nameDirective plutôt que de risquer un envoi
+  // rejeté par MusicGPT — le prénom est de toute façon déjà probablement
+  // présent dans le message utilisateur lui-même.
+  if (prompt.length > PROMPT_MAX_LENGTH && nameDirective) {
+    prompt = scaffold(styleText, occasion, voiceLanguage, messageText, '');
   }
   return prompt;
 }
