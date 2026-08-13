@@ -139,6 +139,9 @@ export default function AdminDashboard() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [humanTasks, setHumanTasks] = useState<HumanTask[]>([]);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [selectedGenIds, setSelectedGenIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -348,6 +351,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleUserSelect = (id: string) => {
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllUsers = (ids: string[]) => {
+    setSelectedUserIds(prev => (prev.size === ids.length ? new Set() : new Set(ids)));
+  };
+
+  const handleBulkDeleteUsers = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    if (!confirm(`Supprimer définitivement ${ids.length} compte(s) et toutes leurs données ? Cette action est irréversible.`)) return;
+    setBulkDeleting(true);
+    const failures: string[] = [];
+    for (const id of ids) {
+      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) failures.push(id);
+    }
+    setBulkDeleting(false);
+    setSelectedUserIds(new Set());
+    await loadAll();
+    if (failures.length > 0) alert(`${failures.length} suppression(s) ont échoué.`);
+  };
+
   const handleHumanTaskAction = async (id: string, action: 'done' | 'dismiss' | 'reopen') => {
     setBusyId(id);
     const res = await fetch(`/api/admin/human-tasks/${id}`, {
@@ -400,6 +430,33 @@ export default function AdminDashboard() {
     const res = await fetch(`/api/admin/generations/${id}`, { method: 'DELETE' });
     setBusyId(null);
     if (res.ok) loadAll(); else alert('Erreur suppression.');
+  };
+
+  const toggleGenSelect = (id: string) => {
+    setSelectedGenIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllGens = (ids: string[]) => {
+    setSelectedGenIds(prev => (prev.size === ids.length ? new Set() : new Set(ids)));
+  };
+
+  const handleBulkDeleteGenerations = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    if (!confirm(`Supprimer définitivement ${ids.length} génération(s) ? Cette action est irréversible.`)) return;
+    setBulkDeleting(true);
+    const failures: string[] = [];
+    for (const id of ids) {
+      const res = await fetch(`/api/admin/generations/${id}`, { method: 'DELETE' });
+      if (!res.ok) failures.push(id);
+    }
+    setBulkDeleting(false);
+    setSelectedGenIds(new Set());
+    await loadAll();
+    if (failures.length > 0) alert(`${failures.length} suppression(s) ont échoué.`);
   };
 
   const handlePricingUpdate = async (id: string, field: string, value: any) => {
@@ -883,9 +940,33 @@ export default function AdminDashboard() {
 
       {tab === 'users' && (
         <div className="overflow-x-auto">
+          <div className="mb-3 flex items-center gap-3 text-xs">
+            <span className="text-gray-500">{selectedUserIds.size} sélectionné(s)</span>
+            <button
+              disabled={bulkDeleting || selectedUserIds.size === 0}
+              onClick={() => handleBulkDeleteUsers(Array.from(selectedUserIds))}
+              className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed underline"
+            >
+              Supprimer la sélection
+            </button>
+            <button
+              disabled={bulkDeleting || users.length === 0}
+              onClick={() => handleBulkDeleteUsers(users.map(u => u.id))}
+              className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed underline"
+            >
+              Tout supprimer
+            </button>
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
+                <th className="py-2 pr-4">
+                  <input
+                    type="checkbox"
+                    checked={users.length > 0 && selectedUserIds.size === users.length}
+                    onChange={() => toggleAllUsers(users.map(u => u.id))}
+                  />
+                </th>
                 <th className="py-2 pr-4">Email</th>
                 <th className="py-2 pr-4">Crédits</th>
                 <th className="py-2 pr-4">Chansons</th>
@@ -897,6 +978,9 @@ export default function AdminDashboard() {
             <tbody>
               {users.map(u => (
                 <tr key={u.id} className="border-b border-gray-100">
+                  <td className="py-2 pr-4">
+                    <input type="checkbox" checked={selectedUserIds.has(u.id)} onChange={() => toggleUserSelect(u.id)} />
+                  </td>
                   <td className="py-2 pr-4">{u.email}</td>
                   <td className="py-2 pr-4 font-semibold">
                     {editingBalanceId === u.id ? (
@@ -940,15 +1024,42 @@ export default function AdminDashboard() {
         <div>
           <div className="mb-4 flex gap-2">
             {['all', 'queued', 'processing', 'completed', 'failed'].map(s => (
-              <button key={s} onClick={() => setGenFilter(s)} className={`text-xs px-3 py-1 rounded-full ${genFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{s}</button>
+              <button key={s} onClick={() => { setGenFilter(s); setSelectedGenIds(new Set()); }} className={`text-xs px-3 py-1 rounded-full ${genFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{s}</button>
             ))}
+          </div>
+          <div className="mb-3 flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1 text-gray-500">
+              <input
+                type="checkbox"
+                checked={generations.length > 0 && selectedGenIds.size === generations.length}
+                onChange={() => toggleAllGens(generations.map(g => g.id))}
+              />
+              {selectedGenIds.size} sélectionné(s)
+            </label>
+            <button
+              disabled={bulkDeleting || selectedGenIds.size === 0}
+              onClick={() => handleBulkDeleteGenerations(Array.from(selectedGenIds))}
+              className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed underline"
+            >
+              Supprimer la sélection
+            </button>
+            <button
+              disabled={bulkDeleting || generations.length === 0}
+              onClick={() => handleBulkDeleteGenerations(generations.map(g => g.id))}
+              className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed underline"
+            >
+              Tout supprimer
+            </button>
           </div>
           <div className="space-y-2">
             {generations.map(g => (
               <div key={g.id} className="flex items-center justify-between text-sm border-b border-gray-100 py-2">
-                <div>
-                  <p className="text-gray-800">{g.user_email} — {g.occasion} / {g.style}</p>
-                  <p className="text-xs text-gray-400">{new Date(g.created_at).toLocaleString('fr-FR')}</p>
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={selectedGenIds.has(g.id)} onChange={() => toggleGenSelect(g.id)} />
+                  <div>
+                    <p className="text-gray-800">{g.user_email} — {g.occasion} / {g.style}</p>
+                    <p className="text-xs text-gray-400">{new Date(g.created_at).toLocaleString('fr-FR')}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={

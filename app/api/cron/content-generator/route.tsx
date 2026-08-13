@@ -4,6 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseAdmin } from '@/lib/admin';
 import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
 import { sendEmail } from '@/lib/email';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -62,18 +64,13 @@ Les 2 variations doivent être différentes l'une de l'autre (angle légèrement
   return slides.slice(0, 2);
 }
 
-// Google Fonts sert du woff/ttf (au lieu de woff2) aux user-agents anciens qui
-// ne déclarent pas le supporter — satori (utilisé par ImageResponse) ne lit
-// pas woff2, mais accepte ttf/otf/woff.
-async function fetchGoogleFontTtf(family: string, weight: number): Promise<ArrayBuffer> {
-  const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weight}&display=swap`, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36' },
-  });
-  const css = await cssRes.text();
-  const match = css.match(/url\((https:\/\/[^)]+)\)\s*format\('(woff|truetype|opentype)'\)/);
-  if (!match) throw new Error(`Police introuvable dans la réponse Google Fonts: ${css.slice(0, 200)}`);
-  const fontRes = await fetch(match[1]);
-  return fontRes.arrayBuffer();
+// La police Ubuntu-Bold est déjà embarquée en TTF pour le rapport PDF
+// partenaire (assets/fonts/) — la lire localement évite une dépendance
+// réseau vers Google Fonts, dont la réponse CSS s'est déjà révélée instable
+// en prod (échec constaté : "Police introuvable dans la réponse Google Fonts").
+function loadBundledFontTtf(): ArrayBuffer {
+  const buf = fs.readFileSync(path.join(process.cwd(), 'assets/fonts/Ubuntu-Bold.ttf'));
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
 
 async function fetchLogoDataUri(siteUrl: string): Promise<string> {
@@ -130,9 +127,9 @@ export async function GET(request: Request) {
 
   try {
     const angle = pickWeeklyAngle();
-    const [slides, fontData, logoDataUri] = await Promise.all([
+    const fontData = loadBundledFontTtf();
+    const [slides, logoDataUri] = await Promise.all([
       generateSlides(angle),
-      fetchGoogleFontTtf('Ubuntu', 700),
       fetchLogoDataUri(process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co'),
     ]);
 
