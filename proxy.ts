@@ -10,7 +10,7 @@ const CANONICAL_HOST = 'melotones.co';
 // un cookie de session à jour pour rediriger un utilisateur déjà connecté.
 const PUBLIC_NO_SESSION_PATHS = new Set(['/', '/terms', '/privacy']);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get('host') || '';
   // Redirige tout hostname non canonique (anciens alias Vercel, domaine
   // supprimé, etc.) vers melotones.co en conservant le chemin et les
