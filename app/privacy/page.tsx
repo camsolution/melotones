@@ -59,21 +59,26 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="font-display font-bold text-lg text-gray-800 mb-2">6. Conservation et suppression</h2>
-          <p>Vos données sont conservées tant que votre compte est actif. Vous pouvez demander la suppression de votre compte et de vos données en nous contactant à l'adresse ci-dessous.</p>
+          <p>Vos données de compte et vos chansons sont conservées tant que votre compte reste actif. Si vous demandez la suppression de votre compte, vos données personnelles sont effacées sous 30 jours, à l'exception des données de facturation que nous conservons plus longtemps lorsque la loi nous y oblige (obligations comptables et fiscales applicables au Sénégal).</p>
         </section>
 
         <section>
-          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">7. Sécurité</h2>
+          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">7. Transferts internationaux</h2>
+          <p>Certains de nos prestataires (voir section 4) hébergent ou traitent des données en dehors du Sénégal, notamment aux États-Unis et dans l'Union européenne. Ces transferts sont limités à ce qui est strictement nécessaire au fonctionnement du service (hébergement, génération musicale, envoi d'emails) et encadrés par les engagements de confidentialité et de sécurité de chaque prestataire.</p>
+        </section>
+
+        <section>
+          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">8. Sécurité</h2>
           <p>L'accès à vos données est protégé par authentification et des règles d'accès strictes au niveau de la base de données. Aucune méthode de transmission ou de stockage n'est totalement infaillible, mais nous mettons en œuvre des mesures raisonnables pour protéger vos informations.</p>
         </section>
 
         <section>
-          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">8. Vos droits</h2>
-          <p>Vous pouvez à tout moment demander l'accès, la correction ou la suppression de vos données personnelles, ou vous désinscrire des emails marketing via le lien présent dans chaque email.</p>
+          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">9. Vos droits</h2>
+          <p>Conformément à la loi sénégalaise n°2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel, vous pouvez à tout moment demander l'accès, la rectification, l'opposition ou la suppression de vos données personnelles, ou vous désinscrire des emails marketing via le lien présent dans chaque email. Vous disposez également du droit d'introduire une réclamation auprès de la Commission de Protection des Données Personnelles du Sénégal (CDP) — <a href="https://www.cdp.sn" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">www.cdp.sn</a>.</p>
         </section>
 
         <section>
-          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">9. Contact</h2>
+          <h2 className="font-display font-bold text-lg text-gray-800 mb-2">10. Contact</h2>
           <p>Pour toute question relative à cette politique ou à vos données, contactez-nous à <a href="mailto:camsolutiontechnologies@gmail.com" className="text-brand-600 hover:underline">camsolutiontechnologies@gmail.com</a>.</p>
         </section>
       </div>

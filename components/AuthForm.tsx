@@ -25,6 +25,7 @@ export default function AuthForm() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const handleCaptchaVerify = useCallback((token: string) => setCaptchaToken(token), []);
@@ -33,6 +34,10 @@ export default function AuthForm() {
   const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
 
   const handleGoogle = async () => {
+    if (!consent) {
+      setError(t('Merci d’accepter les CGU et la Politique de confidentialité avant de continuer.', 'Please accept the Terms and Privacy Policy before continuing.'));
+      return;
+    }
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -43,6 +48,10 @@ export default function AuthForm() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!consent) {
+      setError(t('Merci d’accepter les CGU et la Politique de confidentialité avant de continuer.', 'Please accept the Terms and Privacy Policy before continuing.'));
+      return;
+    }
     if (CAPTCHA_ENABLED && !captchaToken) {
       setError(t('Merci de compléter la vérification humaine.', 'Please complete the human verification.'));
       return;
@@ -86,9 +95,26 @@ export default function AuthForm() {
               <h1 className="font-display font-extrabold text-2xl text-gray-800 text-balance">{t('Bienvenue sur Melotones', 'Welcome to Melotones')}</h1>
               <p className="text-gray-400 text-sm mt-2 mb-7">{t('Connectez-vous pour créer vos chansons', 'Sign in to create your songs')}</p>
 
+              <label className="flex items-start gap-2.5 text-left mb-5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => { setConsent(e.target.checked); setError(''); }}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-300 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-500 leading-snug">
+                  {t('J’accepte les ', 'I accept the ')}
+                  <a href="/terms" target="_blank" className="text-brand-600 hover:underline">{t('Conditions d’utilisation', 'Terms of Service')}</a>
+                  {t(' et la ', ' and the ')}
+                  <a href="/privacy" target="_blank" className="text-brand-600 hover:underline">{t('Politique de confidentialité', 'Privacy Policy')}</a>
+                  {t(', et le traitement de mes données personnelles décrit dans cette dernière.', ', and the processing of my personal data as described therein.')}
+                </span>
+              </label>
+
               <button
                 onClick={handleGoogle}
-                className="w-full flex items-center justify-center gap-3 font-semibold text-[14.5px] py-3.5 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors mb-5"
+                disabled={!consent}
+                className="w-full flex items-center justify-center gap-3 font-semibold text-[14.5px] py-3.5 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors mb-5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
               >
                 <GoogleIcon /> {t('Continuer avec Google', 'Continue with Google')}
               </button>
@@ -125,7 +151,7 @@ export default function AuthForm() {
 
                 <button
                   type="submit"
-                  disabled={status === 'loading' || (CAPTCHA_ENABLED && !captchaToken)}
+                  disabled={!consent || status === 'loading' || (CAPTCHA_ENABLED && !captchaToken)}
                   className="w-full font-bold text-[14.5px] py-3.5 rounded-full text-white bg-gradient-to-r from-brand-600 to-magenta-500 shadow-lg shadow-magenta-200 hover:-translate-y-0.5 transition-transform disabled:opacity-50 disabled:hover:translate-y-0"
                 >
                   {status === 'loading' ? t('Envoi...', 'Sending...') : t('Connexion par email', 'Sign in by email')}
@@ -134,13 +160,6 @@ export default function AuthForm() {
             </>
           )}
         </div>
-
-        {status !== 'sent' && (
-          <p className="text-center text-xs text-gray-400 mt-6 px-4">
-            {t('En vous connectant, vous acceptez nos Conditions d’utilisation et notre Politique de confidentialité.',
-              'By signing in, you agree to our Terms of Service and Privacy Policy.')}
-          </p>
-        )}
       </div>
     </div>
   );
