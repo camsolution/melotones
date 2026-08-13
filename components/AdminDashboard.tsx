@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import AnalyticsChart, { AnalyticsSeriesPoint } from './AnalyticsChart';
 
 type PurchaseRequest = {
   id: string; user_id: string; user_email?: string; pack_id: string; credits: number; price_fcfa: number;
@@ -96,6 +97,7 @@ const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', 
 type Analytics = {
   periodDays: number; uniqueVisitors: number; totalPageviews: number; signupsInPeriod: number; signupRate: number | null;
   totalUsers: number; activatedUsers: number; activationRate: number | null; payingUsers: number; conversionRate: number | null;
+  series: AnalyticsSeriesPoint[];
 };
 
 export default function AdminDashboard() {
@@ -761,6 +763,13 @@ export default function AdminDashboard() {
                   {analytics.conversionRate !== null && <span className="block text-gray-400">{(analytics.conversionRate * 100).toFixed(1)}% du total</span>}
                 </p>
               </div>
+            </div>
+          )}
+
+          {analytics && analytics.series.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-bold mb-2 text-gray-700">Évolution</h3>
+              <AnalyticsChart data={analytics.series} />
             </div>
           )}
         </div>
