@@ -75,19 +75,139 @@ export async function canvaApi(path: string, options: RequestInit = {}): Promise
   }, 15_000);
 }
 
-// Fonctions spécifiques à Melotones (à implémenter avec les endpoints exacts)
+// ------------------------------------------------------------
+// Primitives Canva Connect API (endpoints officiels)
+// ------------------------------------------------------------
+
+export async function createCanvaDesign(payload: any): Promise<any | null> {
+  const res = await canvaApi('/designs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    console.error('Canva create design failed:', res.status, await res.text());
+    return null;
+  }
+  return res.json();
+}
+
+export async function createCanvaExportJob(payload: any): Promise<any | null> {
+  const res = await canvaApi('/exports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    console.error('Canva create export failed:', res.status, await res.text());
+    return null;
+  }
+  return res.json();
+}
+
+export async function createCanvaAutofillJob(payload: any): Promise<any | null> {
+  const res = await canvaApi('/autofills', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    console.error('Canva autofill failed:', res.status, await res.text());
+    return null;
+  }
+  return res.json();
+}
+
+export async function createCanvaAssetUploadJob(payload: any): Promise<any | null> {
+  const res = await canvaApi('/asset-uploads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    console.error('Canva asset upload failed:', res.status, await res.text());
+    return null;
+  }
+  return res.json();
+}
+
+export async function getCanvaAutofillJob(jobId: string): Promise<any | null> {
+  const res = await canvaApi(`/autofills/${jobId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getCanvaExportJob(jobId: string): Promise<any | null> {
+  const res = await canvaApi(`/exports/${jobId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getCanvaAssetUploadJob(jobId: string): Promise<any | null> {
+  const res = await canvaApi(`/asset-uploads/${jobId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ------------------------------------------------------------
+// Fonctions haut niveau (à ajuster selon les schémas exacts)
+// ------------------------------------------------------------
+
+/**
+ * Crée une cover statique via Canva.
+ * Nécessite un brand template ID et les données de la chanson.
+ * Exemple de payload à adapter :
+ * { brand_template_id, data: { occasion, style, message } }
+ */
 export async function createCanvaStaticCover(payload: any): Promise<{ url: string } | null> {
   if (!isCanvaConfigured() || !isStaticCoverEnabled()) return null;
-  // TODO: implémenter l'appel API Canva pour créer une cover statique
-  return null;
+  try {
+    // 1. Lancer un autofill job si un template est fourni
+    if (payload.brandTemplateId) {
+      const job = await createCanvaAutofillJob({
+        brand_template_id: payload.brandTemplateId,
+        data: payload.data || {},
+      });
+      if (!job || !job.job_id) return null;
+
+      // 2. Attendre la fin du job (simplifié ici)
+      let autofillResult = null;
+      for (let i = 0; i < 30; i++) {
+        autofillResult = await getCanvaAutofillJob(job.job_id);
+        if (autofillResult?.status === 'completed') break;
+        if (autofillResult?.status === 'failed') return null;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (!autofillResult?.design_id) return null;
+
+      // 3. Exporter le design en PNG
+      const exportJob = await createCanvaExportJob({ design_id: autofillResult.design_id, format: 'png' });
+      if (!exportJob?.job_id) return null;
+      let exportResult = null;
+      for (let i = 0; i < 30; i++) {
+        exportResult = await getCanvaExportJob(exportJob.job_id);
+        if (exportResult?.status === 'completed') break;
+        if (exportResult?.status === 'failed') return null;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const url = exportResult?.url || exportResult?.download_url;
+      if (url) return { url };
+    }
+    return null;
+  } catch (err) {
+    console.error('Canva static cover error:', err);
+    return null;
+  }
 }
 
 export async function createCanvaAnimatedCover(payload: any): Promise<{ url: string } | null> {
   if (!isCanvaConfigured() || !isAnimatedCoverEnabled()) return null;
+  // Similaire à static cover, mais avec format 'mp4' ou 'gif'
   return null;
 }
 
 export async function createCanvaVisualizer(payload: any): Promise<{ url: string } | null> {
   if (!isCanvaConfigured() || !isVisualizerEnabled()) return null;
+  // Similaire avec un template visualizer et export mp4
   return null;
 }
