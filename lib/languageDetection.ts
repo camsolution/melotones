@@ -12,7 +12,7 @@ export async function detectLanguage(text: string): Promise<LanguageDetection> {
   if (!apiKey || !text || text.trim().length < 8) return null;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const prompt = `Detect the main language of this text. Reply with ONLY a compact JSON object, no markdown, no code fence: {"language": "<ISO 639-1 code, e.g. fr, en, wo, ar>", "confidence": <0 to 1 number>}.\n\nText: "${text.slice(0, 500)}"`;
 

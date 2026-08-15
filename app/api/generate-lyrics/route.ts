@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const language: 'fr' | 'en' = creditRow?.language === 'en' ? 'en' : 'fr';
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   // Le texte généré alimente directement le champ "message" du formulaire, dont
   // la taille max dépend du style/occasion (voir lib/promptBudget.ts — un style

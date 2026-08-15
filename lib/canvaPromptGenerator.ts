@@ -58,7 +58,7 @@ export async function generateCanvaDesignPrompt(input: CanvaPromptInput): Promis
   if (!apiKey) return null;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const context = [
     `Angle marketing : "${input.angle}"`,

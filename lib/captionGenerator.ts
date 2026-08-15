@@ -18,7 +18,7 @@ export async function generateCaptionSuggestion(input: {
   if (!apiKey) return null;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const prompt = `Tu es un expert en marketing des réseaux sociaux pour Melotones, une plateforme qui compose des chansons personnalisées par IA pour la diaspora africaine (anniversaires, mariages, hommages...).
 
