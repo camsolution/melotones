@@ -87,7 +87,8 @@ Propose en JSON strict, sans markdown, sans commentaire :
     const imageDescription = String(parsed.image_description).slice(0, 200);
 
     return { prompt: buildCanvaAIPrompt(headline, subtitle, imageDescription), headline, subtitle };
-  } catch {
+  } catch (err) {
+    console.error('generateCanvaDesignPrompt failed:', err);
     return null;
   }
 }
