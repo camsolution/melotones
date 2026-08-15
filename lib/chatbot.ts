@@ -44,7 +44,7 @@ export async function generateBotReply(userMessage: string, history: { sender: s
   if (userRequestsHuman(userMessage)) return { reply: '', escalate: true };
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const systemContext = await buildContext();
 
   const conversationText = history

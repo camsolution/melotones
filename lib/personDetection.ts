@@ -11,7 +11,7 @@ export async function detectPersons(text: string): Promise<DetectedPerson[]> {
   if (!apiKey || !text || text.trim().length < 4) return [];
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `Extract real personal names (first name, first+last name, or clear contextual nickname referring to a real person) from this text. Text is likely French or English, possibly African/diaspora names with accents or compound forms.
 

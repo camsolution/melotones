@@ -15,7 +15,7 @@ export async function generateShareMessage(occasion: string, style: string, lang
   const styleLabel = styleTranslations[style]?.[lang] ?? style;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `Tu aides quelqu'un à écrire un court message personnel pour accompagner le partage d'une chanson qu'il vient de faire composer par intelligence artificielle sur Melotones, à l'intention d'un proche.
 

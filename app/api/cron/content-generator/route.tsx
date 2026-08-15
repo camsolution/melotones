@@ -42,7 +42,7 @@ async function generateSlides(angle: string): Promise<Slide[]> {
   if (!apiKey) throw new Error('GEMINI_API_KEY manquant');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `Tu écris du contenu marketing en français pour Melotones (melotones.co), une app qui génère des chansons personnalisées par IA (occasion + style musical + message perso -> une chanson complète), pour un public africain/diaspora.
 

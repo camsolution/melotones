@@ -25,7 +25,7 @@ export async function classifyMessage(text: string): Promise<ModerationResult> {
   if (!apiKey) return { category: 'ALLOW', reason: 'moderation_unconfigured' };
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   try {
     const result = await Promise.race([
