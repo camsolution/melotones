@@ -10,6 +10,7 @@ import { sendEmail } from '@/lib/email';
 
 import { classifyMessage, userFacingModerationMessage } from '@/lib/moderation';
 import { createHumanTask } from '@/lib/humanTasks';
+import { checkIpRateLimit } from '@/lib/rateLimit';
 
 const MAX_FIELD_LENGTH = 400;
 const GENERATION_COOLDOWN_MS = 20_000;
@@ -39,6 +40,12 @@ export async function POST(request: Request) {
   const authClient = await createServerClientWithCookies();
   const { data: { user }, error: authError } = await authClient.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Limite par IP, en plus du cooldown par compte plus bas — bloque un
+  // botnet multi-comptes avant même de toucher la base ou le fournisseur IA.
+  if (!(await checkIpRateLimit(request, 'generations', { windowMs: 60_000, max: 5 }))) {
+    return NextResponse.json({ error: 'Trop de requêtes depuis ce réseau, réessaie dans une minute.' }, { status: 429 });
+  }
 
   const { occasion, style, custom_message, voice_gender, song_language, approved_names, name_usage } = await request.json();
   if (!occasion || !style || !custom_message) {

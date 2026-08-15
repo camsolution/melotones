@@ -1,14 +1,15 @@
 'use client';
 import { useMemo, useState } from 'react';
 
-export type AnalyticsSeriesPoint = { date: string; visitors: number; pageviews: number; signups: number };
+export type AnalyticsSeriesPoint = { date: string; visitors: number; pageviews: number; signups: number; shares: number };
 
-type MetricKey = 'visitors' | 'pageviews' | 'signups';
+type MetricKey = 'visitors' | 'pageviews' | 'signups' | 'shares';
 
 const METRICS: { key: MetricKey; label: string; color: string }[] = [
   { key: 'visitors', label: 'Visiteurs', color: '#7c3aed' },
   { key: 'pageviews', label: 'Pages vues', color: '#f23d82' },
   { key: 'signups', label: 'Inscriptions', color: '#e8952a' },
+  { key: 'shares', label: 'Partages', color: '#16a34a' },
 ];
 
 const PERIODS = [7, 14, 30] as const;
@@ -22,7 +23,7 @@ const PAD_BOTTOM = 26;
 
 export default function AnalyticsChart({ data }: { data: AnalyticsSeriesPoint[] }) {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(30);
-  const [visible, setVisible] = useState<Record<MetricKey, boolean>>({ visitors: true, pageviews: true, signups: true });
+  const [visible, setVisible] = useState<Record<MetricKey, boolean>>({ visitors: true, pageviews: true, signups: true, shares: true });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const points = useMemo(() => data.slice(-period), [data, period]);

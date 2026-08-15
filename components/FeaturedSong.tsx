@@ -75,56 +75,65 @@ export default function FeaturedSong() {
   useEffect(() => {
     if (!song || !ready || !audioRef.current) return;
     const audio = audioRef.current;
-
-    let ctx: AudioContext | null = null;
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      ctx = new AudioCtx();
-      audioCtxRef.current = ctx;
-      const source = ctx.createMediaElementSource(audio);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      const gain = ctx.createGain();
-      gain.gain.value = 0; // démarre coupé — la lecture auto avec son est bloquée par les navigateurs de toute façon
-      source.connect(analyser);
-      analyser.connect(gain);
-      gain.connect(ctx.destination);
-      analyserRef.current = analyser;
-      gainRef.current = gain;
-      rafRef.current = requestAnimationFrame(draw);
-    } catch {
-      // Web Audio indisponible : on se contente du lecteur muet en boucle, sans visualiseur
-    }
-
     audio.muted = true;
     audio.play().catch(() => {});
 
     // Le son audible ne peut jamais démarrer tout seul (règle imposée par tous les
     // navigateurs) — on attire l'œil sur le bouton pendant quelques secondes pour
     // que l'activation au clic soit aussi immédiate que possible pour l'utilisateur.
+    // L'AudioContext n'est PAS créé ici : sur Safari iOS, un AudioContext créé en
+    // dehors d'un geste utilisateur direct reste bloqué et le premier clic ne sert
+    // qu'à le débloquer sans produire de son — d'où le "il faut cliquer deux fois"
+    // constaté sur iPhone. On la crée exclusivement dans toggleMute (voir plus bas),
+    // pour que tout — création, resume, lecture — arrive dans le même geste.
     setShowHint(true);
     const hintTimer = setTimeout(() => setShowHint(false), 6000);
 
+    return () => clearTimeout(hintTimer);
+  }, [song, ready]);
+
+  useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      ctx?.close().catch(() => {});
-      audioCtxRef.current = null;
-      clearTimeout(hintTimer);
+      audioCtxRef.current?.close().catch(() => {});
     };
-  }, [song, ready, draw]);
+  }, []);
+
+  const ensureAudioGraph = () => {
+    if (audioCtxRef.current || !audioRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const source = ctx.createMediaElementSource(audioRef.current);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      source.connect(analyser);
+      analyser.connect(gain);
+      gain.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+      gainRef.current = gain;
+      rafRef.current = requestAnimationFrame(draw);
+    } catch {
+      // Web Audio indisponible : on se contente du lecteur muet en boucle, sans visualiseur
+    }
+  };
 
   const toggleMute = () => {
     setShowHint(false);
+    // Doit rester synchrone et en tout premier dans le geste utilisateur — Safari
+    // iOS exige que la création ET le déblocage de l'AudioContext se produisent
+    // dans le même clic, jamais après un await.
+    ensureAudioGraph();
     const next = !muted;
     setMuted(next);
     if (audioRef.current) audioRef.current.muted = next;
+    audioCtxRef.current?.resume().catch(() => {});
     if (gainRef.current && audioRef.current) {
       gainRef.current.gain.setTargetAtTime(next ? 0 : 1, audioRef.current.currentTime || 0, 0.05);
     }
-    // Le navigateur suspend l'AudioContext tant qu'aucun geste utilisateur direct
-    // ne le relance — sans ce reprise explicite, aucun son ne sort même une fois
-    // démuté. Le clic sur le haut-parleur EST ce geste, donc on en profite ici.
-    if (!next) audioCtxRef.current?.resume().catch(() => {});
     audioRef.current?.play().catch(() => {});
   };
 
@@ -133,8 +142,13 @@ export default function FeaturedSong() {
   const occasionLabel = occasionTranslations[song.occasion]?.[lang] ?? song.occasion;
   const styleLabel = styleTranslations[song.style]?.[lang] ?? song.style;
 
+  // Pas d'overflow-hidden sur la section : la bulle "Activer le son" est
+  // positionnée au-dessus du bouton haut-parleur (-top-9) et serait rognée
+  // par un conteneur qui coupe son débordement — aucun enfant ne touche les
+  // coins arrondis (padding + gap suffisent), donc rien d'autre n'en
+  // dépendait visuellement.
   return (
-    <section className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-stage via-[#1F1640] to-[#291D52] border border-stage-border px-5 py-4 flex items-center gap-4">
+    <section className="relative rounded-[24px] bg-gradient-to-r from-stage via-[#1F1640] to-[#291D52] border border-stage-border px-5 py-4 flex items-center gap-4">
       <audio
         ref={audioRef}
         src={song.audio_url}

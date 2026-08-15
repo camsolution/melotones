@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { User, LogOut, ShieldCheck, Music2, Calendar } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { createClient } from '@/lib/supabase/client';
+import MfaEnrollment from '@/components/MfaEnrollment';
 
 export default function ProfilPage() {
   const { lang, setLang, t } = useLanguage();
@@ -82,6 +83,8 @@ export default function ProfilPage() {
           </div>
         </Link>
       </div>
+
+      {isAdmin && <MfaEnrollment />}
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 mb-5">
         <div className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-3">{t('Langue', 'Language')}</div>

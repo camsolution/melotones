@@ -24,16 +24,20 @@ export async function POST(request: Request) {
   const { error, status } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status });
 
-  const { title, description } = await request.json();
+  const { title, description, source } = await request.json();
   const trimmedTitle = typeof title === 'string' ? title.trim() : '';
   if (!trimmedTitle || trimmedTitle.length > MAX_TITLE_LENGTH) {
     return NextResponse.json({ error: `Titre requis (max ${MAX_TITLE_LENGTH} caractères).` }, { status: 400 });
   }
   const trimmedDescription = typeof description === 'string' ? description.trim().slice(0, MAX_DESCRIPTION_LENGTH) : null;
+  // 'mission' distingue les objectifs déposés depuis l'espace de travail IA
+  // des tâches manuelles classiques — utile pour un futur agent qui viendrait
+  // les reprendre automatiquement (voir P1 du plan de croissance).
+  const allowedSource = source === 'mission' ? 'mission' : 'admin';
 
   const { data, error: dbError } = await supabaseAdmin
     .from('human_tasks')
-    .insert({ title: trimmedTitle, description: trimmedDescription, source: 'admin', status: 'pending' })
+    .insert({ title: trimmedTitle, description: trimmedDescription, source: allowedSource, status: 'pending' })
     .select()
     .single();
 

@@ -97,7 +97,9 @@ export default function AuthForm() {
 
               <label className="relative flex items-start gap-2.5 text-left mb-5 cursor-pointer select-none">
                 {!consent && (
-                  <span className="absolute -left-6 top-0 text-lg animate-nudge-point" aria-hidden="true">👉</span>
+                  <span className="absolute -left-8 -top-2 w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center animate-nudge-glow pointer-events-none" aria-hidden="true">
+                    <span className="text-2xl animate-nudge-point">👉</span>
+                  </span>
                 )}
                 <input
                   type="checkbox"

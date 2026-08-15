@@ -9,7 +9,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
   const params = await props.params;
   const { data: song } = await supabaseAdmin
     .from('generations')
-    .select('occasion, style, is_public, status')
+    .select('occasion, style, is_public, status, cover_url')
     .eq('id', params.id)
     .single();
 
@@ -19,13 +19,18 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 
   const occasion = occasionTranslations[song.occasion]?.fr ?? song.occasion;
   const title = `Chanson pour ${occasion} — créée avec Melotones`;
-  const description = `Écoutez cette chanson personnalisée (style ${song.style}) composée par intelligence artificielle sur Melotones, pour ${occasion}.`;
+  const description = `Quelqu'un a créé cette chanson (style ${song.style}) spécialement pour cette occasion, avec Melotones. Écoute-la.`;
+  // Sans cover_url (rare, génération très ancienne), on retombe sur l'image
+  // sociale par défaut du site plutôt que de ne rien montrer — un aperçu vide
+  // sur WhatsApp/Facebook est le principal frein au clic.
+  const images = song.cover_url ? [{ url: song.cover_url, width: 1024, height: 1024 }] : undefined;
 
   return {
     title,
     description,
     alternates: { canonical: `/songs/${params.id}` },
-    openGraph: { title, description, type: 'music.song' },
+    openGraph: { title, description, type: 'music.song', images, siteName: 'Melotones' },
+    twitter: { card: 'summary_large_image', title, description, images: song.cover_url ? [song.cover_url] : undefined },
   };
 }
 

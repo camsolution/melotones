@@ -48,7 +48,7 @@ type EmailCampaign = {
   headline: string | null; cta_label: string | null; cta_url: string | null; promo_code: string | null; error_message: string | null;
 };
 
-const TABS = ['overview', 'analytics', 'automation', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'testimonials', 'alerts'] as const;
+const TABS = ['overview', 'analytics', 'automation', 'requests', 'users', 'generations', 'pricing', 'partners', 'ads', 'featured', 'refunds', 'messages', 'emailing', 'testimonials', 'alerts', 'credentials'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -67,6 +67,7 @@ const TAB_LABELS: Record<Tab, string> = {
   emailing: 'Emailing',
   testimonials: 'Avis',
   alerts: 'Alertes',
+  credentials: 'Identifiants',
 };
 
 type Testimonial = {
@@ -95,6 +96,77 @@ type HumanTask = {
   status: 'pending' | 'done' | 'dismissed'; created_at: string; completed_at: string | null;
 };
 
+type CanvaStatus = {
+  configured: boolean; connected: boolean; expiresAt: string | null;
+  lastRefreshedAt: string | null; connectedAt: string | null; scopes: string | null; lastError: string | null;
+};
+
+type TiktokStatus = CanvaStatus;
+type MetaStatus = CanvaStatus;
+type YoutubeStatus = CanvaStatus;
+
+type CredentialEntry = {
+  key: string; label: string; kind: 'oauth' | 'apikey';
+  configured: boolean; connected?: boolean;
+  expiresAt?: string | null; lastRefreshedAt?: string | null; lastError?: string | null;
+  envVars: string[]; rotateUrl: string;
+};
+
+type CanvaSyncReport = {
+  dryRun: boolean; rootFolder: string | null; foldersScanned: number; designsFound: number;
+  toCreate: number; toUpdate: number; unchanged: number; manualCheck: number;
+  items: { action: string; title: string; folderName: string; reason?: string }[];
+  error?: string;
+};
+
+type ContentAsset = {
+  id: string; canva_design_id: string; canva_folder_name: string | null; canva_edit_url: string | null;
+  thumbnail_url: string | null; title: string; platform: string | null; status: string;
+  canva_updated_at: string | null; last_sync_at: string | null;
+  suggested_caption_fr: string | null; suggested_caption_en: string | null; suggested_hashtags: string | null;
+};
+
+const ASSET_STATUSES = ['DISCOVERED', 'CLASSIFIED', 'DRAFT', 'READY_FOR_REVIEW', 'APPROVED', 'EXPORTING', 'EXPORTED', 'SCHEDULED', 'PUBLISHED', 'FAILED', 'ARCHIVED', 'REJECTED', 'MANUAL_UPLOAD_REQUIRED'];
+
+type AssetPriority = { rank: number; label: string; tone: 'urgent' | 'ready' | 'blocked' | 'progress' | 'done' };
+
+// Ordonne les assets par étape réelle du pipeline (légende → approbation →
+// publication) au lieu de l'ordre brut de la base, pour que l'admin sache
+// toujours quoi faire en premier sans avoir à deviner parmi ~50 cartes
+// identiques.
+function getAssetPriority(a: ContentAsset, tiktokConnected: boolean, youtubeConnected: boolean): AssetPriority {
+  if (a.status === 'MANUAL_UPLOAD_REQUIRED') {
+    return { rank: 1, label: 'À finaliser : ouvre TikTok/YouTube Studio pour publier réellement', tone: 'urgent' };
+  }
+  if (a.status === 'FAILED') {
+    return { rank: 2, label: "Échec : vérifie l'erreur puis relance ou annule", tone: 'urgent' };
+  }
+  if (a.status === 'DISCOVERED' || a.status === 'CLASSIFIED' || a.status === 'READY_FOR_REVIEW') {
+    if (!a.suggested_caption_fr) {
+      return { rank: 3, label: "Étape 1 : génère la légende IA avant d'approuver", tone: 'ready' };
+    }
+    return { rank: 4, label: 'Étape 2 : prêt à approuver', tone: 'ready' };
+  }
+  if (a.status === 'APPROVED') {
+    if (tiktokConnected || youtubeConnected) {
+      return { rank: 5, label: 'Étape 3 : prêt à publier', tone: 'ready' };
+    }
+    return { rank: 6, label: 'En attente : connecte TikTok ou YouTube pour publier', tone: 'blocked' };
+  }
+  if (a.status === 'EXPORTING' || a.status === 'EXPORTED' || a.status === 'SCHEDULED') {
+    return { rank: 7, label: 'En cours — rien à faire pour le moment', tone: 'progress' };
+  }
+  return { rank: 8, label: a.status === 'REJECTED' ? 'Annulé' : 'Terminé', tone: 'done' };
+}
+
+const PRIORITY_BADGE_CLASSES: Record<AssetPriority['tone'], string> = {
+  urgent: 'bg-amber-100 text-amber-700',
+  ready: 'bg-green-100 text-green-700',
+  blocked: 'bg-gray-100 text-gray-500',
+  progress: 'bg-blue-100 text-blue-700',
+  done: 'bg-gray-50 text-gray-400',
+};
+
 const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; description: string }[] = [
   { slug: 'backup', name: 'Sauvegarde hebdomadaire', schedule: 'Chaque lundi 08:00 UTC', description: 'Exporte toutes les tables + fichiers Storage, lien de téléchargement envoyé par email (7 jours).' },
   { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT — envoyé par email.' },
@@ -109,6 +181,7 @@ type Analytics = {
   periodDays: number; uniqueVisitors: number; totalPageviews: number; signupsInPeriod: number; signupRate: number | null;
   totalUsers: number; activatedUsers: number; activationRate: number | null; payingUsers: number; conversionRate: number | null;
   series: AnalyticsSeriesPoint[];
+  totalShares: number; sharesByChannel: Record<string, number>;
 };
 
 export default function AdminDashboard() {
@@ -152,13 +225,27 @@ export default function AdminDashboard() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [humanTasks, setHumanTasks] = useState<HumanTask[]>([]);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
+  const [missionText, setMissionText] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [selectedGenIds, setSelectedGenIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [canvaStatus, setCanvaStatus] = useState<CanvaStatus | null>(null);
+  const [tiktokStatus, setTiktokStatus] = useState<TiktokStatus | null>(null);
+  const [metaStatus, setMetaStatus] = useState<MetaStatus | null>(null);
+  const [youtubeStatus, setYoutubeStatus] = useState<YoutubeStatus | null>(null);
+  const [canvaSyncReport, setCanvaSyncReport] = useState<CanvaSyncReport | null>(null);
+  const [canvaSyncing, setCanvaSyncing] = useState(false);
+  const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
+  const [assets, setAssets] = useState<ContentAsset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetStatusFilter, setAssetStatusFilter] = useState('all');
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetBusyId, setAssetBusyId] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<CredentialEntry[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, humanTasksRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes] = await Promise.all([
+    const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, humanTasksRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes, canvaStatusRes, tiktokStatusRes, metaStatusRes, youtubeStatusRes, credentialsRes] = await Promise.all([
       fetch('/api/admin/stats'),
       fetch('/api/admin/analytics'),
       fetch('/api/admin/automation/runs'),
@@ -176,6 +263,11 @@ export default function AdminDashboard() {
       fetch('/api/admin/campaigns'),
       fetch('/api/admin/provider-errors'),
       fetch('/api/admin/provider-balance'),
+      fetch('/api/admin/canva/status'),
+      fetch('/api/admin/tiktok/status'),
+      fetch('/api/admin/meta/status'),
+      fetch('/api/admin/youtube/status'),
+      fetch('/api/admin/credentials/status'),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
@@ -194,6 +286,11 @@ export default function AdminDashboard() {
     if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
     if (providerErrorsRes.ok) setProviderErrors(await providerErrorsRes.json());
     if (providerBalanceRes.ok) setProviderBalance(await providerBalanceRes.json());
+    if (canvaStatusRes.ok) setCanvaStatus(await canvaStatusRes.json());
+    if (tiktokStatusRes.ok) setTiktokStatus(await tiktokStatusRes.json());
+    if (metaStatusRes.ok) setMetaStatus(await metaStatusRes.json());
+    if (youtubeStatusRes.ok) setYoutubeStatus(await youtubeStatusRes.json());
+    if (credentialsRes.ok) setCredentials((await credentialsRes.json()).entries || []);
     setLoading(false);
   }, [genFilter]);
 
@@ -413,11 +510,103 @@ export default function AdminDashboard() {
     setBusyId('new-task');
     const res = await fetch('/api/admin/human-tasks', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTask.title.trim(), description: newTask.description.trim() }),
+      body: JSON.stringify({ title: newTask.title.trim(), description: newTask.description.trim(), source: 'admin' }),
     });
     setBusyId(null);
     if (res.ok) { setNewTask({ title: '', description: '' }); loadAll(); }
+    else alert('Erreur.');
+  };
+
+  // Espace de travail IA (P0 #3 du plan de croissance) : une mission écrite
+  // librement devient une tâche priorisable dans la même file que les tâches
+  // manuelles — pas de nouvelle table, pas de nouvel agent, juste un point
+  // d'entrée dédié à des objectifs de croissance plutôt qu'à des todos.
+  const handleSubmitMission = async () => {
+    const text = missionText.trim();
+    if (!text) return;
+    setBusyId('new-mission');
+    const title = text.length > 70 ? `${text.slice(0, 70)}…` : text;
+    const res = await fetch('/api/admin/human-tasks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description: text, source: 'mission' }),
+    });
+    setBusyId(null);
+    if (res.ok) { setMissionText(''); loadAll(); }
     else alert('Erreur création tâche.');
+  };
+
+  const handleCanvaSync = async (dryRun: boolean) => {
+    setCanvaSyncing(true);
+    const res = await fetch('/api/admin/canva/sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dryRun }),
+    });
+    setCanvaSyncing(false);
+    if (res.ok) setCanvaSyncReport(await res.json());
+    else alert('Erreur de synchronisation Canva.');
+  };
+
+  const loadAssets = useCallback(async () => {
+    setAssetsLoading(true);
+    const params = new URLSearchParams();
+    if (assetStatusFilter !== 'all') params.set('status', assetStatusFilter);
+    if (assetSearch.trim()) params.set('q', assetSearch.trim());
+    const res = await fetch(`/api/admin/canva/assets?${params.toString()}`);
+    setAssetsLoading(false);
+    if (res.ok) setAssets(await res.json());
+  }, [assetStatusFilter, assetSearch]);
+
+  useEffect(() => {
+    if (assetLibraryOpen) loadAssets();
+  }, [assetLibraryOpen, loadAssets]);
+
+  const handleAssetStatusChange = async (id: string, newStatus: string) => {
+    setAssetBusyId(id);
+    const res = await fetch(`/api/admin/canva/assets/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }),
+    });
+    setAssetBusyId(null);
+    if (res.ok) setAssets(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+    else alert('Erreur de mise à jour du statut.');
+  };
+
+  const handleSuggestCaption = async (id: string) => {
+    setAssetBusyId(id);
+    const res = await fetch(`/api/admin/canva/assets/${id}/suggest-caption`, { method: 'POST' });
+    const data = await res.json();
+    setAssetBusyId(null);
+    if (res.ok) {
+      setAssets(prev => prev.map(a => a.id === id ? { ...a, suggested_caption_fr: data.captionFr, suggested_caption_en: data.captionEn, suggested_hashtags: data.hashtags } : a));
+    } else {
+      alert(`Échec : ${data.error}`);
+    }
+  };
+
+  const handlePublishTiktok = async (id: string) => {
+    setAssetBusyId(id);
+    const res = await fetch(`/api/admin/canva/assets/${id}/publish-tiktok`, { method: 'POST' });
+    const data = await res.json();
+    setAssetBusyId(null);
+    if (res.ok) {
+      alert(`Déposé en brouillon TikTok (statut : ${data.tiktokStatus}). Ouvre l'app TikTok pour finaliser et publier.`);
+      loadAssets();
+    } else {
+      alert(`Échec : ${data.error}`);
+      loadAssets();
+    }
+  };
+
+  const handlePublishYoutube = async (id: string) => {
+    setAssetBusyId(id);
+    const res = await fetch(`/api/admin/canva/assets/${id}/publish-youtube`, { method: 'POST' });
+    const data = await res.json();
+    setAssetBusyId(null);
+    if (res.ok) {
+      alert(`Déposée sur YouTube en privé (id: ${data.videoId}). Ouvre YouTube Studio pour finaliser et changer la visibilité.`);
+      loadAssets();
+    } else {
+      alert(`Échec : ${data.error}`);
+      loadAssets();
+    }
   };
 
   const handleTestimonialAction = async (id: string, action: string) => {
@@ -783,11 +972,338 @@ export default function AdminDashboard() {
               <AnalyticsChart data={analytics.series} />
             </div>
           )}
+
+          {analytics && (
+            <div className="mt-8">
+              <h3 className="text-sm font-bold mb-1 text-gray-700">Partages ({analytics.periodDays}j)</h3>
+              <p className="text-xs text-gray-400 mb-3">
+                Clics sur les boutons de partage des pages chanson publiques — permet de vérifier si les messages
+                personnalisés et le CTA augmentent réellement le partage, plutôt que de le supposer.
+              </p>
+              {analytics.totalShares === 0 ? (
+                <p className="text-gray-500 text-sm">Aucun partage suivi sur la période.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="card">
+                    <p className="text-2xl font-bold text-brand-600">{analytics.totalShares}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total partages</p>
+                  </div>
+                  {Object.entries(analytics.sharesByChannel).sort((a, b) => b[1] - a[1]).map(([channel, count]) => (
+                    <div key={channel} className="card">
+                      <p className="text-2xl font-bold text-brand-600">{count}</p>
+                      <p className="text-xs text-gray-500 mt-1 capitalize">{channel}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'automation' && (
         <div>
+          <h3 className="text-sm font-bold mb-2 text-gray-700">Connexions externes</h3>
+          <div className="card mb-6 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-gray-800">Canva</span>
+                {!canvaStatus?.configured ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">Non configuré</span>
+                ) : canvaStatus.connected ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Connecté</span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Déconnecté</span>
+                )}
+              </div>
+              {canvaStatus?.connected && (
+                <p className="text-xs text-gray-500">
+                  Dernier rafraîchissement : {canvaStatus.lastRefreshedAt ? new Date(canvaStatus.lastRefreshedAt).toLocaleString('fr-FR') : '—'}
+                </p>
+              )}
+              {canvaStatus?.lastError && (
+                <p className="text-xs text-red-500 mt-1">Erreur : {canvaStatus.lastError}</p>
+              )}
+              {!canvaStatus?.configured && (
+                <p className="text-xs text-gray-400 mt-1">CANVA_CLIENT_ID / CANVA_CLIENT_SECRET manquants côté serveur.</p>
+              )}
+            </div>
+            {canvaStatus?.configured && (
+              <div className="flex gap-2 flex-none">
+                <a href="/api/admin/canva/authorize" className="btn-secondary text-xs px-4 py-2">
+                  {canvaStatus.connected ? 'Reconnecter Canva' : 'Connecter Canva'}
+                </a>
+                {canvaStatus.connected && (
+                  <button disabled={canvaSyncing} onClick={() => handleCanvaSync(true)} className="btn-secondary text-xs px-4 py-2 disabled:opacity-50">
+                    {canvaSyncing ? 'Analyse…' : 'Aperçu synchronisation'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="card mb-6 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-gray-800">TikTok</span>
+                {!tiktokStatus?.configured ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">Non configuré</span>
+                ) : tiktokStatus.connected ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Connecté</span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Déconnecté</span>
+                )}
+              </div>
+              {tiktokStatus?.connected && (
+                <p className="text-xs text-gray-500">
+                  Dernier rafraîchissement : {tiktokStatus.lastRefreshedAt ? new Date(tiktokStatus.lastRefreshedAt).toLocaleString('fr-FR') : '—'} · scopes : {tiktokStatus.scopes || '—'}
+                </p>
+              )}
+              {tiktokStatus?.lastError && (
+                <p className="text-xs text-red-500 mt-1">Erreur : {tiktokStatus.lastError}</p>
+              )}
+              {!tiktokStatus?.configured && (
+                <p className="text-xs text-gray-400 mt-1">TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET manquants côté serveur.</p>
+              )}
+              {tiktokStatus?.configured && (
+                <p className="text-xs text-amber-600 mt-1">
+                  La publication directe (video.publish) ne fonctionne que si l'app a été auditée par TikTok — sinon les vidéos restent en brouillon privé (limite de la plateforme).
+                </p>
+              )}
+            </div>
+            {tiktokStatus?.configured && (
+              <a href="/api/admin/tiktok/authorize" className="btn-secondary text-xs px-4 py-2 flex-none">
+                {tiktokStatus.connected ? 'Reconnecter TikTok' : 'Connecter TikTok'}
+              </a>
+            )}
+          </div>
+
+          <div className="card mb-6 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-gray-800">Meta (Facebook / Instagram)</span>
+                {!metaStatus?.configured ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">Non configuré</span>
+                ) : metaStatus.connected ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Connecté</span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Déconnecté</span>
+                )}
+              </div>
+              {metaStatus?.connected && (
+                <p className="text-xs text-gray-500">
+                  Dernier rafraîchissement : {metaStatus.lastRefreshedAt ? new Date(metaStatus.lastRefreshedAt).toLocaleString('fr-FR') : '—'}
+                </p>
+              )}
+              {metaStatus?.lastError && <p className="text-xs text-red-500 mt-1">Erreur : {metaStatus.lastError}</p>}
+              {!metaStatus?.configured && (
+                <p className="text-xs text-gray-400 mt-1">META_APP_ID / META_APP_SECRET manquants côté serveur.</p>
+              )}
+              {metaStatus?.configured && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Un compte Instagram professionnel doit être lié à une Page Facebook pour être géré ici — c'est une exigence de Meta, pas de ce code.
+                </p>
+              )}
+            </div>
+            {metaStatus?.configured && (
+              <a href="/api/admin/meta/authorize" className="btn-secondary text-xs px-4 py-2 flex-none">
+                {metaStatus.connected ? 'Reconnecter Meta' : 'Connecter Meta'}
+              </a>
+            )}
+          </div>
+
+          <div className="card mb-6 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-gray-800">YouTube</span>
+                {!youtubeStatus?.configured ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">Non configuré</span>
+                ) : youtubeStatus.connected ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Connecté</span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Déconnecté</span>
+                )}
+              </div>
+              {youtubeStatus?.connected && (
+                <p className="text-xs text-gray-500">
+                  Dernier rafraîchissement : {youtubeStatus.lastRefreshedAt ? new Date(youtubeStatus.lastRefreshedAt).toLocaleString('fr-FR') : '—'}
+                </p>
+              )}
+              {youtubeStatus?.lastError && <p className="text-xs text-red-500 mt-1">Erreur : {youtubeStatus.lastError}</p>}
+              {!youtubeStatus?.configured && (
+                <p className="text-xs text-gray-400 mt-1">YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET manquants côté serveur.</p>
+              )}
+            </div>
+            {youtubeStatus?.configured && (
+              <a href="/api/admin/youtube/authorize" className="btn-secondary text-xs px-4 py-2 flex-none">
+                {youtubeStatus.connected ? 'Reconnecter YouTube' : 'Connecter YouTube'}
+              </a>
+            )}
+          </div>
+
+          {canvaSyncReport && (
+            <div className="card mb-6">
+              {canvaSyncReport.error ? (
+                <p className="text-sm text-red-600">{canvaSyncReport.error}</p>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-gray-800 mb-1">
+                    {canvaSyncReport.dryRun ? 'Aperçu (aucune écriture)' : 'Synchronisation confirmée'} — dossier « {canvaSyncReport.rootFolder} »
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {canvaSyncReport.foldersScanned} sous-dossiers · {canvaSyncReport.designsFound} designs trouvés
+                  </p>
+                  <div className="flex gap-4 text-xs mb-3">
+                    <span className="text-green-700">{canvaSyncReport.toCreate} nouveaux</span>
+                    <span className="text-brand-600">{canvaSyncReport.toUpdate} mis à jour</span>
+                    <span className="text-gray-500">{canvaSyncReport.unchanged} inchangés</span>
+                    {canvaSyncReport.manualCheck > 0 && (
+                      <span className="text-amber-600">{canvaSyncReport.manualCheck} doublons potentiels à vérifier</span>
+                    )}
+                  </div>
+                  {canvaSyncReport.manualCheck > 0 && (
+                    <div className="mb-3 space-y-1">
+                      {canvaSyncReport.items.filter(i => i.action === 'MANUAL_CHECK').map((i, idx) => (
+                        <p key={idx} className="text-xs text-amber-700">⚠ « {i.title} » ({i.folderName}) — {i.reason}</p>
+                      ))}
+                    </div>
+                  )}
+                  {canvaSyncReport.dryRun && (canvaSyncReport.toCreate > 0 || canvaSyncReport.toUpdate > 0) && (
+                    <button disabled={canvaSyncing} onClick={() => handleCanvaSync(false)} className="btn-primary text-xs px-4 py-2 disabled:opacity-50">
+                      {canvaSyncing ? 'Écriture…' : `Confirmer (écrire ${canvaSyncReport.toCreate + canvaSyncReport.toUpdate} entrées)`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <button onClick={() => setAssetLibraryOpen(o => !o)} className="text-sm font-bold text-brand-600 hover:text-brand-700 mb-3">
+            {assetLibraryOpen ? '▾' : '▸'} Bibliothèque de contenu Canva
+          </button>
+          {assetLibraryOpen && (
+            <div className="mb-8">
+              <p className="text-xs text-gray-400 mb-3">
+                Le statut est une étiquette posée ici manuellement — aucune publication, export ou programmation réelle n'est déclenchée (aucun réseau social n'est connecté à ce jour).
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                <input
+                  value={assetSearch} onChange={e => setAssetSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') loadAssets(); }}
+                  placeholder="Rechercher un titre…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+                <select value={assetStatusFilter} onChange={e => setAssetStatusFilter(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                  <option value="all">Tous les statuts</option>
+                  {ASSET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <button onClick={loadAssets} className="btn-secondary text-sm px-4">Filtrer</button>
+              </div>
+              {assetsLoading ? (
+                <p className="text-sm text-gray-400">Chargement…</p>
+              ) : assets.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun asset ne correspond.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {assets
+                    .map(a => ({ asset: a, priority: getAssetPriority(a, !!tiktokStatus?.connected, !!youtubeStatus?.connected) }))
+                    .sort((x, y) => x.priority.rank - y.priority.rank)
+                    .map((item, idx) => {
+                    const a = item.asset;
+                    const priority = item.priority;
+                    return (
+                    <div key={a.id} className="card !p-2 relative">
+                      <div className="absolute top-1 left-1 z-10 w-5 h-5 rounded-full bg-gray-900/80 text-white text-[10px] font-bold flex items-center justify-center">
+                        {idx + 1}
+                      </div>
+                      <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 mb-2">
+                        {a.thumbnail_url && <img src={a.thumbnail_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800 truncate" title={a.title}>{a.title}</p>
+                      <p className="text-[10px] text-gray-400 truncate mb-1">{a.platform} · {a.canva_folder_name}</p>
+                      <p className={`text-[10px] font-semibold rounded px-1.5 py-0.5 mb-1.5 ${PRIORITY_BADGE_CLASSES[priority.tone]}`}>{priority.label}</p>
+                      {(a.status === 'DISCOVERED' || a.status === 'CLASSIFIED' || a.status === 'READY_FOR_REVIEW') ? (
+                        <div className="flex gap-1 mb-1.5">
+                          <button
+                            disabled={assetBusyId === a.id}
+                            onClick={() => handleAssetStatusChange(a.id, 'APPROVED')}
+                            className="flex-1 text-[10px] font-bold text-white bg-green-600 hover:bg-green-700 rounded px-1.5 py-1 disabled:opacity-50"
+                          >
+                            ✓ Approuver
+                          </button>
+                          <button
+                            disabled={assetBusyId === a.id}
+                            onClick={() => handleAssetStatusChange(a.id, 'REJECTED')}
+                            className="flex-1 text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 rounded px-1.5 py-1 disabled:opacity-50"
+                          >
+                            ✕ Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            a.status === 'APPROVED' ? 'bg-green-100 text-green-700'
+                            : a.status === 'REJECTED' ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-600'
+                          }`}>{a.status}</span>
+                          <button
+                            disabled={assetBusyId === a.id}
+                            onClick={() => handleAssetStatusChange(a.id, 'DISCOVERED')}
+                            className="text-[10px] text-gray-400 hover:text-gray-600 underline"
+                          >
+                            Revenir en attente
+                          </button>
+                        </div>
+                      )}
+                      <select
+                        value={a.status} disabled={assetBusyId === a.id}
+                        onChange={e => handleAssetStatusChange(a.id, e.target.value)}
+                        className="w-full text-[10px] border border-gray-200 rounded px-1.5 py-1 mb-1.5"
+                      >
+                        {ASSET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {a.canva_edit_url && (
+                        <a href={a.canva_edit_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-600 hover:underline block mb-1">Ouvrir dans Canva</a>
+                      )}
+                      <button
+                        disabled={assetBusyId === a.id}
+                        onClick={() => handleSuggestCaption(a.id)}
+                        className="w-full text-[10px] font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded px-1.5 py-1 mb-1 disabled:opacity-50"
+                      >
+                        {assetBusyId === a.id ? 'Génération…' : (a.suggested_caption_fr ? '↻ Régénérer légende (IA)' : '✨ Générer légende (IA)')}
+                      </button>
+                      {a.suggested_caption_fr && (
+                        <div className="text-[10px] bg-gray-50 border border-gray-100 rounded p-1.5 mb-1.5 space-y-1">
+                          <p className="text-gray-700">{a.suggested_caption_fr}</p>
+                          <p className="text-gray-400 italic">{a.suggested_caption_en}</p>
+                          <p className="text-brand-600">{a.suggested_hashtags}</p>
+                        </div>
+                      )}
+                      {a.status === 'APPROVED' && tiktokStatus?.connected && (
+                        <button
+                          disabled={assetBusyId === a.id}
+                          onClick={() => handlePublishTiktok(a.id)}
+                          className="w-full text-[10px] font-semibold text-white bg-gray-900 rounded px-1.5 py-1 mb-1 disabled:opacity-50"
+                        >
+                          {assetBusyId === a.id ? 'Envoi…' : 'Publier sur TikTok (brouillon)'}
+                        </button>
+                      )}
+                      {a.status === 'APPROVED' && youtubeStatus?.connected && (
+                        <button
+                          disabled={assetBusyId === a.id}
+                          onClick={() => handlePublishYoutube(a.id)}
+                          className="w-full text-[10px] font-semibold text-white bg-red-600 rounded px-1.5 py-1 disabled:opacity-50"
+                        >
+                          {assetBusyId === a.id ? 'Envoi…' : 'Publier sur YouTube (privé)'}
+                        </button>
+                      )}
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <h2 className="text-lg font-bold mb-1 text-gray-800">Centre de contrôle — Agents autonomes</h2>
           <p className="text-xs text-gray-400 mb-4">
             Chaque agent tourne comme une routine cloud planifiée, indépendante de ce dashboard, et rapporte son résultat ici après chaque exécution.
@@ -824,6 +1340,25 @@ export default function AdminDashboard() {
             })}
           </div>
 
+          <h3 className="text-sm font-bold mb-1 text-gray-700">🧭 Espace de travail — donne une mission</h3>
+          <p className="text-xs text-gray-400 mb-3">
+            Écris un objectif en langage libre (ex : « Analyse pourquoi les visiteurs ne s'inscrivent pas suffisamment »). Elle devient une tâche priorisable ci-dessous — aucune exécution automatique n'est déclenchée.
+          </p>
+          <div className="card flex flex-col gap-2 mb-6">
+            <textarea
+              value={missionText} onChange={e => setMissionText(e.target.value)}
+              placeholder="Ta mission…" rows={3} maxLength={1000}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
+            />
+            <button
+              disabled={busyId === 'new-mission' || !missionText.trim()}
+              onClick={handleSubmitMission}
+              className="btn-primary text-sm px-4 self-end disabled:opacity-50"
+            >
+              {busyId === 'new-mission' ? 'Envoi…' : 'Envoyer à l\'équipe →'}
+            </button>
+          </div>
+
           <h3 className="text-sm font-bold mb-2 text-gray-700">
             Tâches humaines en attente {humanTasks.filter(t => t.status === 'pending').length > 0 && (
               <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{humanTasks.filter(t => t.status === 'pending').length}</span>
@@ -841,7 +1376,10 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-sm font-medium text-gray-800">{t.title}</p>
                   {t.description && <p className="text-xs text-gray-500 mt-1">{t.description}</p>}
-                  <p className="text-xs text-gray-400 mt-1">{t.source === 'admin' ? 'Ajoutée manuellement' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`} · {new Date(t.created_at).toLocaleDateString('fr-FR')}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {t.source === 'admin' ? 'Ajoutée manuellement' : t.source === 'mission' ? 'Mission déposée depuis l\'espace de travail' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`}
+                    {' · '}{new Date(t.created_at).toLocaleDateString('fr-FR')}
+                  </p>
                 </div>
                 <div className="flex gap-2 flex-none">
                   <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'done')} className="btn-secondary text-xs px-3 py-1">Fait</button>
@@ -850,6 +1388,7 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+          <p className="text-xs text-gray-400 mb-1">Ajout rapide (todo simple, sans passer par l'espace de travail) :</p>
           <div className="card flex flex-col sm:flex-row gap-2 mb-4">
             <input
               value={newTask.title} onChange={e => setNewTask(s => ({ ...s, title: e.target.value }))}
@@ -1553,6 +2092,48 @@ export default function AdminDashboard() {
             </div>
           ))}
           {providerErrors.length === 0 && <p className="text-gray-500">Aucune alerte pour le moment.</p>}
+        </div>
+      )}
+
+      {tab === 'credentials' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 mb-2">
+            Vue d'ensemble de tous les identifiants de services tiers utilisés par Melotones. Les valeurs elles-mêmes
+            ne sont jamais affichées ici — elles vivent uniquement dans les variables d'environnement Vercel. Cette
+            liste sert à voir en un coup d'œil ce qui est configuré, connecté, ou en erreur.
+          </p>
+          {credentials.map(c => (
+            <div key={c.key} className="card flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-gray-800">{c.label}</p>
+                  {!c.configured ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Non configuré</span>
+                  ) : c.kind === 'oauth' ? (
+                    c.connected ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Connecté</span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Déconnecté</span>
+                    )
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Configuré</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 font-mono mt-1">{c.envVars.join(' · ')}</p>
+                {c.kind === 'oauth' && c.connected && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Dernier rafraîchissement : {c.lastRefreshedAt ? new Date(c.lastRefreshedAt).toLocaleString('fr-FR') : '—'}
+                    {c.expiresAt ? ` · expire : ${new Date(c.expiresAt).toLocaleString('fr-FR')}` : ''}
+                  </p>
+                )}
+                {c.lastError && <p className="text-xs text-red-500 mt-1">Erreur : {c.lastError}</p>}
+              </div>
+              <a href={c.rotateUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs flex-none">
+                Gérer / faire tourner →
+              </a>
+            </div>
+          ))}
+          {credentials.length === 0 && <p className="text-gray-500">Chargement…</p>}
         </div>
       )}
     </div>

@@ -2,13 +2,16 @@ import { supabaseAdmin } from '@/lib/admin';
 
 const PERIOD_DAYS = 30;
 
-export type AnalyticsSeriesPoint = { date: string; visitors: number; pageviews: number; signups: number };
+export type AnalyticsSeriesPoint = { date: string; visitors: number; pageviews: number; signups: number; shares: number };
 
 export async function computeAnalytics() {
   const since = new Date(Date.now() - PERIOD_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const [{ data: views }, { count: totalUsers }, { data: completedGens }, { data: approvedPurchases }, { data: authUsersData }] = await Promise.all([
-    supabaseAdmin.from('page_views').select('session_id, created_at').gte('created_at', since),
+    // 'path' était déjà nécessaire pour rien d'autre ici — l'ajouter à cette
+    // même requête (au lieu d'un aller-retour dédié) permet de dériver les
+    // événements /share/* sans coût supplémentaire.
+    supabaseAdmin.from('page_views').select('session_id, created_at, path').gte('created_at', since),
     supabaseAdmin.from('user_credits').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('generations').select('user_id').eq('status', 'completed'),
     supabaseAdmin.from('purchase_requests').select('user_id').eq('status', 'approved'),
@@ -37,11 +40,22 @@ export async function computeAnalytics() {
   }
   const visitorsByDay = new Map<string, Set<string>>();
   const pageviewsByDay = new Map<string, number>();
+  const sharesByDay = new Map<string, number>();
+  // Boucle virale (recommandation post-partage) : le nombre de clics de
+  // partage par canal depuis les pages /songs/[id], pour vérifier si les
+  // nouveaux messages/CTA changent réellement le comportement plutôt que de
+  // le supposer.
+  const sharesByChannel: Record<string, number> = {};
   for (const v of views || []) {
     const day = v.created_at.slice(0, 10);
     pageviewsByDay.set(day, (pageviewsByDay.get(day) || 0) + 1);
     if (!visitorsByDay.has(day)) visitorsByDay.set(day, new Set());
     visitorsByDay.get(day)!.add(v.session_id);
+    if (v.path?.startsWith('/share/')) {
+      sharesByDay.set(day, (sharesByDay.get(day) || 0) + 1);
+      const channel = v.path.slice('/share/'.length) || 'autre';
+      sharesByChannel[channel] = (sharesByChannel[channel] || 0) + 1;
+    }
   }
   const signupsByDay = new Map<string, number>();
   for (const u of authUsers) {
@@ -53,9 +67,14 @@ export async function computeAnalytics() {
     visitors: visitorsByDay.get(date)?.size ?? 0,
     pageviews: pageviewsByDay.get(date) ?? 0,
     signups: signupsByDay.get(date) ?? 0,
+    shares: sharesByDay.get(date) ?? 0,
   }));
 
+  const totalShares = Object.values(sharesByChannel).reduce((a, b) => a + b, 0);
+
   return {
+    totalShares,
+    sharesByChannel,
     periodDays: PERIOD_DAYS,
     uniqueVisitors,
     totalPageviews,

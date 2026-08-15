@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/admin';
 import { checkPrediction } from '@/lib/music-generator';
 import { autoRefund, requestRefundApproval, autoRejectIfPending } from '@/lib/refunds';
-import { logProviderError } from '@/lib/providerErrors';
+import { logProviderError, isProviderOutOfCredits } from '@/lib/providerErrors';
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 
 const STALE_THRESHOLD_MS = 15 * 60 * 1000;
@@ -25,6 +25,26 @@ export async function finalizeIfReady(generationId: string): Promise<'completed'
   if (prediction.status === 'processing') {
     const ageMs = Date.now() - new Date(gen.created_at).getTime();
     if (ageMs > STALE_THRESHOLD_MS) {
+      // Si le fournisseur a signalé un vrai manque de crédit récemment (même
+      // signal que le coupe-circuit de POST /api/generations), une génération
+      // bloquée pendant cette fenêtre en est très probablement victime — la
+      // cause n'est alors plus incertaine, remboursement automatique direct
+      // plutôt qu'une attente de validation admin.
+      if (await isProviderOutOfCredits()) {
+        const reason = 'Fournisseur à court de crédits (détecté après blocage prolongé de la génération)';
+        const { data: updated } = await supabaseAdmin
+          .from('generations')
+          .update({ status: 'failed', failure_reason: reason })
+          .eq('id', generationId)
+          .eq('status', gen.status)
+          .select()
+          .single();
+        if (updated) {
+          await logProviderError(generationId, gen.user_id, reason);
+          await autoRefund(generationId, gen.user_id, reason);
+        }
+        return 'failed';
+      }
       // Cause incertaine : ni succès ni échec signalé après un délai anormalement
       // long. On ne marque PAS la génération en échec (elle peut encore aboutir),
       // on demande simplement une confirmation admin avant tout remboursement.

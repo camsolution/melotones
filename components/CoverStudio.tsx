@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ImagePlus, Check, Loader2, Headphones, Wand2 } from 'lucide-react';
+import { ImagePlus, Check, Loader2, Headphones, Wand2, Download } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { occasionTranslations, styleTranslations } from '@/lib/listTranslations';
 import { coverTemplates, suggestedTemplate, CoverTemplate } from '@/lib/coverTemplates';
@@ -402,8 +402,13 @@ export default function CoverStudio({
           </div>
 
           {savedUrl && !saving && (
-            <a href={savedUrl} download className="text-xs text-brand-600 font-semibold hover:underline">
-              {t('Télécharger l\'image', 'Download image')}
+            <a
+              href={savedUrl} download
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-full px-3 py-1.5"
+              title={t('Enregistre juste l\'image sur ton téléphone — sans le son, pour la publier telle quelle', 'Saves just the image to your phone — without the audio, to post it as-is')}
+            >
+              <Download className="w-3.5 h-3.5" />
+              {t('Enregistrer juste l\'image (sans le son)', 'Save just the image (no audio)')}
             </a>
           )}
         </div>

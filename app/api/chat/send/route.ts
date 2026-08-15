@@ -2,6 +2,7 @@ import { createServerClientWithCookies } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/admin';
 import { generateBotReply } from '@/lib/chatbot';
 import { NextResponse } from 'next/server';
+import { checkIpRateLimit } from '@/lib/rateLimit';
 
 const MAX_MESSAGE_LENGTH = 1000;
 const COOLDOWN_MS = 3000;
@@ -11,6 +12,10 @@ export async function POST(request: Request) {
   const authClient = await createServerClientWithCookies();
   const { data: { user }, error } = await authClient.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!(await checkIpRateLimit(request, 'chat', { windowMs: 60_000, max: 20 }))) {
+    return NextResponse.json({ error: 'Trop de messages depuis ce réseau, réessaie dans une minute.' }, { status: 429 });
+  }
 
   const { message } = await request.json();
   if (!message || typeof message !== 'string' || !message.trim()) {

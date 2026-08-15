@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 
 const STORAGE_KEY = 'melotones_session_id';
 
-function getOrCreateSessionId(): string {
+export function getOrCreateSessionId(): string {
   try {
     const existing = localStorage.getItem(STORAGE_KEY);
     if (existing) return existing;
