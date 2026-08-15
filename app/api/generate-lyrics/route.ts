@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
+import { VOICE_LANGUAGE_NAMES, computeMessageBudget, truncateToWordBoundary } from '@/lib/promptBudget';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,14 +65,24 @@ export async function POST(request: Request) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
+  // Le texte généré alimente directement le champ "message" du formulaire, dont
+  // la taille max dépend du style/occasion (voir lib/promptBudget.ts — un style
+  // déjà très décrit comme Arabic ou Cabo Love laisse moins de marge). On donne
+  // donc ce budget à Gemini en amont pour éviter de générer un texte que
+  // l'utilisateur devrait ensuite raccourcir lui-même, avec une troncature au
+  // mot le plus proche en filet de sécurité si Gemini le dépasse malgré tout.
+  const voiceLanguage = VOICE_LANGUAGE_NAMES[language] || 'French';
+  const { max: maxLength } = computeMessageBudget(style, occasion, voiceLanguage);
+
   const prompt = language === 'en'
-    ? `Write a short text (3-4 sentences, in English) describing the emotional content of a personalized song for the occasion "${occasion}" in a "${style}" musical style. ${hint ? `Draw inspiration from this hint given by the user: "${hint}".` : ''} The text should be warm, specific, mention emotions and content suggestions (without writing actual rhyming lyrics, just a description). Reply with only the text, no preamble.`
-    : `Écris un court texte (3-4 phrases, en français) décrivant le contenu émotionnel d'une chanson personnalisée pour l'occasion "${occasion}" dans un style musical "${style}". ${hint ? `Inspire-toi de cet indice donné par l'utilisateur : "${hint}".` : ''} Le texte doit être chaleureux, précis, mentionner des émotions et suggestions de contenu (sans écrire de vraies paroles avec rimes, juste une description). Réponds uniquement avec le texte, sans préambule.`;
+    ? `Write a short text (in English) describing the emotional content of a personalized song for the occasion "${occasion}" in a "${style}" musical style. ${hint ? `Draw inspiration from this hint given by the user: "${hint}".` : ''} The text should be warm, specific, mention emotions and content suggestions (without writing actual rhyming lyrics, just a description). It MUST be at most ${maxLength} characters, including spaces — stay comfortably under that limit rather than getting cut off mid-sentence. Reply with only the text, no preamble.`
+    : `Écris un court texte (en français) décrivant le contenu émotionnel d'une chanson personnalisée pour l'occasion "${occasion}" dans un style musical "${style}". ${hint ? `Inspire-toi de cet indice donné par l'utilisateur : "${hint}".` : ''} Le texte doit être chaleureux, précis, mentionner des émotions et suggestions de contenu (sans écrire de vraies paroles avec rimes, juste une description). Il doit impérativement tenir en ${maxLength} caractères maximum, espaces compris — reste confortablement sous cette limite plutôt que de risquer une coupure en milieu de phrase. Réponds uniquement avec le texte, sans préambule.`;
 
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    return NextResponse.json({ text });
+    const rawText = result.response.text().trim();
+    const text = rawText.length > maxLength ? truncateToWordBoundary(rawText, maxLength) : rawText;
+    return NextResponse.json({ text, maxLength });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Erreur génération' }, { status: 500 });
   }

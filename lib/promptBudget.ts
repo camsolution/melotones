@@ -26,7 +26,7 @@ export function computeMessageBudget(style: string, occasion: string, voiceLangu
   return { min: MIN_MESSAGE_LENGTH, max };
 }
 
-function truncateToWordBoundary(text: string, maxLength: number): string {
+export function truncateToWordBoundary(text: string, maxLength: number): string {
   if (maxLength <= 0) return '';
   if (text.length <= maxLength) return text;
   const cut = text.slice(0, maxLength);
