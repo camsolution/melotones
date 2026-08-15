@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import AnalyticsChart, { AnalyticsSeriesPoint } from './AnalyticsChart';
 
 type PurchaseRequest = {
@@ -256,6 +256,38 @@ export default function AdminDashboard() {
   const [assetBusyId, setAssetBusyId] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<CredentialEntry[]>([]);
 
+  // La vue d'ensemble (onglet par défaut) n'a besoin que de stats + solde
+  // fournisseur, mais le montage chargeait auparavant les 22 endpoints de
+  // tous les onglets d'un coup. loadCore couvre ce cas courant ("l'admin
+  // ouvre le dashboard et repart") ; le chargement complet (loadAll,
+  // inchangé) n'est déclenché que lazy, à la première visite d'un autre
+  // onglet (voir l'effect plus bas) — chaque onglet a déjà son propre
+  // garde-fou "Chargement…" tant que sa donnée est encore vide. requests et
+  // refunds restent dans loadCore malgré tout : ils alimentent les badges
+  // "(n)" de la barre d'onglets elle-même, visible même depuis Vue d'ensemble.
+  const loadCore = useCallback(async () => {
+    const [statsRes, providerBalanceRes, reqRes, refundsRes] = await Promise.all([
+      fetch('/api/admin/stats'),
+      fetch('/api/admin/provider-balance'),
+      fetch('/api/admin/purchase-requests'),
+      fetch('/api/admin/refund-requests'),
+    ]);
+    if (statsRes.ok) setStats(await statsRes.json());
+    if (providerBalanceRes.ok) setProviderBalance(await providerBalanceRes.json());
+    if (reqRes.ok) setRequests(await reqRes.json());
+    if (refundsRes.ok) setRefunds(await refundsRes.json());
+    setLoading(false);
+  }, []);
+
+  // Fetch isolé pour l'onglet Générations — auparavant, changer le filtre de
+  // statut redéclenchait loadAll() en entier (22 endpoints) simplement parce
+  // que loadAll dépendait de genFilter et que le useEffect de montage
+  // réagissait à ce changement d'identité de fonction.
+  const loadGenerationsOnly = useCallback(async (status: string) => {
+    const res = await fetch(`/api/admin/generations?status=${status}`);
+    if (res.ok) setGenerations(await res.json());
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     const [statsRes, analyticsRes, automationRunsRes, testimonialsRes, humanTasksRes, reqRes, usersRes, genRes, priceRes, partnersRes, adsRes, featuredRes, allGenRes, refundsRes, campaignsRes, providerErrorsRes, providerBalanceRes, canvaStatusRes, tiktokStatusRes, metaStatusRes, youtubeStatusRes, credentialsRes] = await Promise.all([
@@ -307,7 +339,14 @@ export default function AdminDashboard() {
     setLoading(false);
   }, [genFilter]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { loadCore(); }, [loadCore]);
+
+  const fullDataLoadedRef = useRef(false);
+  useEffect(() => {
+    if (tab === 'overview' || fullDataLoadedRef.current) return;
+    fullDataLoadedRef.current = true;
+    loadAll();
+  }, [tab, loadAll]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1728,7 +1767,7 @@ export default function AdminDashboard() {
         <div>
           <div className="mb-4 flex gap-2">
             {['all', 'queued', 'processing', 'completed', 'failed'].map(s => (
-              <button key={s} onClick={() => { setGenFilter(s); setSelectedGenIds(new Set()); }} className={`text-xs px-3 py-1 rounded-full ${genFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{s}</button>
+              <button key={s} onClick={() => { setGenFilter(s); setSelectedGenIds(new Set()); loadGenerationsOnly(s); }} className={`text-xs px-3 py-1 rounded-full ${genFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{s}</button>
             ))}
           </div>
           <div className="mb-3 flex items-center gap-3 text-xs">
