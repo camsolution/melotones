@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, supabaseAdmin } from '@/lib/admin';
-import { createCanvaExportJob, getCanvaExportJob } from '@/lib/canva';
+import { createCanvaExportJob, getCanvaExportJob, thumbPathFor } from '@/lib/canva';
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
+import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -62,6 +63,22 @@ export async function POST() {
       .from('marketing-content')
       .upload(path, result, { contentType: 'image/png', upsert: true });
     if (uploadError) { errors.push(`${asset.canva_design_id}: upload — ${uploadError.message}`); continue; }
+
+    // Vignette légère séparée pour la grille du dashboard — le PNG complet
+    // (pensé pour un usage final, pas un aperçu) pouvait peser 100-150 Ko
+    // par carte pour ~40 cartes affichées d'un coup. Le redimensionnement via
+    // le transform d'URL signée Supabase Storage a été testé en direct et ne
+    // réduit rien sur ce projet (fonctionnalité payante non activée) — on
+    // génère donc la vignette nous-mêmes avec sharp (déjà une dépendance).
+    try {
+      const thumbBuffer = await sharp(result).resize(480, 480, { fit: 'cover' }).jpeg({ quality: 70 }).toBuffer();
+      await supabaseAdmin.storage
+        .from('marketing-content')
+        .upload(thumbPathFor(path), thumbBuffer, { contentType: 'image/jpeg', upsert: true });
+    } catch {
+      // Pas bloquant : à défaut de vignette, /api/admin/canva/assets retombe
+      // sur le PNG complet.
+    }
 
     await supabaseAdmin
       .from('content_assets')

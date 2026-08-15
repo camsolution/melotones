@@ -239,6 +239,14 @@ export type CanvaDesign = {
 
 export type CanvaFolder = { id: string; name: string; created_at: number; updated_at: number };
 
+// Chemin de la vignette légère dérivé du chemin de l'export complet — pas de
+// colonne DB dédiée, juste une convention de nommage maintenue à l'export
+// (app/api/admin/canva/export-assets) et lue à l'affichage
+// (app/api/admin/canva/assets).
+export function thumbPathFor(fullPath: string): string {
+  return fullPath.replace(/\.png$/, '-thumb.jpg');
+}
+
 // Il n'existe pas d'endpoint Canva pour lister toutes les racines — on part
 // toujours d'un folder_id connu. Confirmé en direct le 2026-08-14 : les IDs de
 // dossiers créés via Canva MCP (studio "MELOTONES — CREATIVE & MARKETING
