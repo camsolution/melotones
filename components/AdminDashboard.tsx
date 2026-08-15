@@ -128,6 +128,13 @@ type ContentAsset = {
 
 const ASSET_STATUSES = ['DISCOVERED', 'CLASSIFIED', 'DRAFT', 'READY_FOR_REVIEW', 'APPROVED', 'EXPORTING', 'EXPORTED', 'SCHEDULED', 'PUBLISHED', 'FAILED', 'ARCHIVED', 'REJECTED', 'MANUAL_UPLOAD_REQUIRED'];
 
+const ASSET_STATUS_LABELS_FR: Record<string, string> = {
+  DISCOVERED: 'Découvert', CLASSIFIED: 'Classé', DRAFT: 'Brouillon', READY_FOR_REVIEW: 'Prêt pour révision',
+  APPROVED: 'Approuvé', EXPORTING: 'Export en cours', EXPORTED: 'Exporté', SCHEDULED: 'Programmé',
+  PUBLISHED: 'Publié', FAILED: 'Échec', ARCHIVED: 'Archivé', REJECTED: 'Rejeté',
+  MANUAL_UPLOAD_REQUIRED: 'Action manuelle requise',
+};
+
 type AssetPriority = { rank: number; label: string; tone: 'urgent' | 'ready' | 'blocked' | 'progress' | 'done' };
 
 // Ordonne les assets par étape réelle du pipeline (légende → approbation →
@@ -571,8 +578,51 @@ export default function AdminDashboard() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }),
     });
     setAssetBusyId(null);
-    if (res.ok) setAssets(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+    if (res.ok) {
+      setAssets(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+      if (newStatus === 'REJECTED') alert('✕ Asset rejeté — aucune action de publication déclenchée.');
+    }
     else alert('Erreur de mise à jour du statut.');
+  };
+
+  // "Approuver" ne se contente plus de poser une étiquette : ça déclenche
+  // réellement le dépôt sur chaque réseau connecté (brouillon TikTok, vidéo
+  // privée YouTube) et affiche un résumé explicite de ce que chaque agent a
+  // fait — pour que l'admin sache toujours si son approbation a été suivie
+  // d'un effet réel ou non, sans avoir à deviner.
+  const handleApproveAndPublish = async (id: string) => {
+    setAssetBusyId(id);
+    const statusRes = await fetch(`/api/admin/canva/assets/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'APPROVED' }),
+    });
+    if (!statusRes.ok) {
+      setAssetBusyId(null);
+      alert("✕ Échec : l'approbation n'a pas pu être enregistrée.");
+      return;
+    }
+    setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'APPROVED' } : a));
+
+    const results = ['✓ Asset approuvé.'];
+    if (tiktokStatus?.connected) {
+      const r = await fetch(`/api/admin/canva/assets/${id}/publish-tiktok`, { method: 'POST' });
+      const d = await r.json();
+      results.push(r.ok
+        ? `✓ TikTok : brouillon déposé (statut ${d.tiktokStatus}) — ouvre l'app TikTok pour finaliser et publier.`
+        : `✕ TikTok : échec — ${d.error}`);
+    }
+    if (youtubeStatus?.connected) {
+      const r = await fetch(`/api/admin/canva/assets/${id}/publish-youtube`, { method: 'POST' });
+      const d = await r.json();
+      results.push(r.ok
+        ? `✓ YouTube : vidéo déposée en privé (id ${d.videoId}) — ouvre YouTube Studio pour finaliser et publier.`
+        : `✕ YouTube : échec — ${d.error}`);
+    }
+    if (!tiktokStatus?.connected && !youtubeStatus?.connected) {
+      results.push("Aucun réseau connecté pour publier automatiquement — connecte TikTok ou YouTube dans l'onglet Identifiants.");
+    }
+    setAssetBusyId(null);
+    alert(results.join('\n\n'));
+    loadAssets();
   };
 
   const handleSuggestCaption = async (id: string) => {
@@ -1279,7 +1329,7 @@ export default function AdminDashboard() {
           {assetLibraryOpen && (
             <div className="mb-8">
               <p className="text-xs text-gray-400 mb-3">
-                Le statut est une étiquette posée ici manuellement — aucune publication, export ou programmation réelle n'est déclenchée (aucun réseau social n'est connecté à ce jour).
+                "✓ Approuver" déclenche automatiquement le dépôt sur les réseaux connectés (brouillon TikTok, vidéo privée YouTube) — un humain doit ensuite ouvrir l'app pour finaliser et publier réellement. Aucune publication automatique et directe n'existe à ce jour, sur aucune plateforme.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 mb-3">
                 <input
@@ -1289,7 +1339,7 @@ export default function AdminDashboard() {
                 />
                 <select value={assetStatusFilter} onChange={e => setAssetStatusFilter(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
                   <option value="all">Tous les statuts</option>
-                  {ASSET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  {ASSET_STATUSES.map(s => <option key={s} value={s}>{ASSET_STATUS_LABELS_FR[s] || s}</option>)}
                 </select>
                 <button onClick={loadAssets} className="btn-secondary text-sm px-4">Filtrer</button>
               </div>
@@ -1320,7 +1370,7 @@ export default function AdminDashboard() {
                         <div className="flex gap-1 mb-1.5">
                           <button
                             disabled={assetBusyId === a.id}
-                            onClick={() => handleAssetStatusChange(a.id, 'APPROVED')}
+                            onClick={() => handleApproveAndPublish(a.id)}
                             className="flex-1 text-[10px] font-bold text-white bg-green-600 hover:bg-green-700 rounded px-1.5 py-1 disabled:opacity-50"
                           >
                             ✓ Approuver
@@ -1339,7 +1389,7 @@ export default function AdminDashboard() {
                             a.status === 'APPROVED' ? 'bg-green-100 text-green-700'
                             : a.status === 'REJECTED' ? 'bg-red-100 text-red-700'
                             : 'bg-gray-100 text-gray-600'
-                          }`}>{a.status}</span>
+                          }`}>{ASSET_STATUS_LABELS_FR[a.status] || a.status}</span>
                           <button
                             disabled={assetBusyId === a.id}
                             onClick={() => handleAssetStatusChange(a.id, 'DISCOVERED')}
@@ -1354,7 +1404,7 @@ export default function AdminDashboard() {
                         onChange={e => handleAssetStatusChange(a.id, e.target.value)}
                         className="w-full text-[10px] border border-gray-200 rounded px-1.5 py-1 mb-1.5"
                       >
-                        {ASSET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        {ASSET_STATUSES.map(s => <option key={s} value={s}>{ASSET_STATUS_LABELS_FR[s] || s}</option>)}
                       </select>
                       {a.canva_edit_url && (
                         <a href={a.canva_edit_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-600 hover:underline block mb-1">Ouvrir dans Canva</a>
