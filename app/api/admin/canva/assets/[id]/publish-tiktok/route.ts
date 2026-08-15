@@ -58,6 +58,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       sync_error: null,
     }).eq('id', id);
 
+    // publishId est l'ID du job de dépôt en brouillon, pas forcément l'ID
+    // vidéo final tel qu'il existera une fois publié manuellement par
+    // l'humain — gardé pour permettre de vérifier le statut plus tard, mais
+    // la lecture de stats réelles (vues/likes) nécessite en plus le scope
+    // video.list, pas encore accordé (voir human_tasks).
+    await supabaseAdmin.from('platform_publications').insert({
+      content_asset_id: id,
+      platform: 'tiktok',
+      external_video_id: result.publishId,
+    });
+
     return NextResponse.json({ ok: true, tiktokStatus: result.status, publishId: result.publishId });
   } catch (err: any) {
     await supabaseAdmin.from('content_assets').update({ status: 'FAILED', sync_error: err.message || 'Erreur inconnue' }).eq('id', id);

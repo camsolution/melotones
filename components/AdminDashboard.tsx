@@ -179,6 +179,7 @@ const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; descrip
   { slug: 'growth-digest', name: 'Rapport de croissance', schedule: 'Chaque lundi 09:00 UTC', description: 'Visiteurs, inscriptions, activation, conversion, solde MusicGPT — envoyé par email.' },
   { slug: 'health-monitor', name: 'Surveillance santé', schedule: 'Chaque jour 07:00 UTC', description: 'Coupe-circuit fournisseur, remboursements en attente, erreurs des dernières 24h, solde bas — alerte par email si besoin.' },
   { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère 2 nouveaux visuels + légendes (angle rotatif), envoyés par email pour publication manuelle.' },
+  { slug: 'social-analytics', name: 'Performance réseaux sociaux', schedule: 'Chaque mardi 09:00 UTC', description: "Lit les vraies statistiques (vues/likes/commentaires) des vidéos publiées et envoie une analyse par email — YouTube actif, TikTok en attente du scope video.list. Rien n'est envoyé s'il n'y a pas encore de données réelles." },
   { slug: 'onboarding-sequence', name: 'Séquence d\'activation', schedule: 'Chaque jour 11:00 UTC', description: 'J0 bienvenue à tous les nouveaux comptes, puis J2/J7 relancent les comptes restés inactifs (jamais généré, jamais acheté) vers leur premier achat — respecte la désinscription.' },
 ];
 

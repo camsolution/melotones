@@ -54,6 +54,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await supabaseAdmin.from('content_assets').update({ status: 'MANUAL_UPLOAD_REQUIRED', sync_error: null }).eq('id', id);
 
+    // Contrairement au publishId TikTok (job de dépôt), l'ID YouTube est déjà
+    // l'ID réel et permanent de la vidéo (même en privé) — directement
+    // exploitable pour lire des stats réelles plus tard (scope
+    // youtube.readonly déjà accordé).
+    await supabaseAdmin.from('platform_publications').insert({
+      content_asset_id: id,
+      platform: 'youtube',
+      external_video_id: result.videoId,
+    });
+
     return NextResponse.json({ ok: true, videoId: result.videoId, privacyStatus: result.privacyStatus });
   } catch (err: any) {
     await supabaseAdmin.from('content_assets').update({ status: 'FAILED', sync_error: err.message || 'Erreur inconnue' }).eq('id', id);
