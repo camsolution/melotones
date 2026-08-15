@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseAdmin } from '@/lib/admin';
 import { verifyCronSecret, getAdminEmails, reportRun } from '@/lib/cron';
 import { sendEmail } from '@/lib/email';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 import fs from 'fs';
 import path from 'path';
 
@@ -34,7 +35,7 @@ function pickWeeklyAngle(): string {
   return ANGLES[weeksSinceEpoch % ANGLES.length];
 }
 
-type Slide = { headline: string; subtext: string; caption: string };
+type Slide = { headline: string; caption: string };
 
 async function generateSlides(angle: string): Promise<Slide[]> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -49,11 +50,11 @@ Angle de cette semaine : "${angle}".
 
 Génère exactement 2 variations créatives sur cet angle, au format JSON strict (rien d'autre que le JSON) :
 [
-  {"headline": "titre accrocheur, 2-4 mots max, percutant", "subtext": "sous-texte court, une phrase, 6-10 mots max", "caption": "légende complète prête à poster sur Instagram/Facebook : 2-3 phrases chaleureuses en français, un emoji pertinent, terminant par 'melotones.co' et 4-5 hashtags pertinents incluant #Melotones"},
-  {"headline": "...", "subtext": "...", "caption": "..."}
+  {"headline": "titre accrocheur, 2-4 mots max, percutant", "caption": "légende complète prête à poster sur Instagram/Facebook : 2-3 phrases chaleureuses en français, un emoji pertinent, terminant par 'melotones.co' et 4-5 hashtags pertinents incluant #Melotones"},
+  {"headline": "...", "caption": "..."}
 ]
 
-Les 2 variations doivent être différentes l'une de l'autre (angle légèrement différent ou ton différent), pas de répétition.`;
+Les 2 variations doivent être différentes l'une de l'autre (angle légèrement différent ou ton différent), pas de répétition. N'invente aucun chiffre ni statistique.`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
@@ -62,6 +63,44 @@ Les 2 variations doivent être différentes l'une de l'autre (angle légèrement
   const slides = JSON.parse(jsonMatch[0]);
   if (!Array.isArray(slides) || slides.length === 0) throw new Error('Gemini a renvoyé un format inattendu');
   return slides.slice(0, 2);
+}
+
+// Remplace le "subtext" auparavant inventé par Gemini par un vrai chiffre —
+// cohérent avec la règle du projet de ne jamais fabriquer de statistique
+// marketing (voir human_tasks / lib/canvaPromptGenerator.ts).
+async function fetchWeeklyStat(): Promise<string> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { count } = await supabaseAdmin
+    .from('generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'completed')
+    .gte('created_at', since);
+  return `🎵 ${count ?? 0} chanson${(count ?? 0) === 1 ? '' : 's'} créée${(count ?? 0) === 1 ? '' : 's'} cette semaine`;
+}
+
+// Une vraie pochette d'une génération publique récente plutôt qu'une photo
+// stock — cohérent avec le principe "rien d'inventé" et montre du contenu
+// réellement produit par Melotones.
+async function fetchRandomCoverDataUri(): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('generations')
+    .select('cover_url')
+    .eq('is_public', true)
+    .eq('status', 'completed')
+    .not('cover_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (!data || data.length === 0) return null;
+
+  const pick = data[Math.floor(Math.random() * data.length)];
+  try {
+    const res = await fetchWithTimeout(pick.cover_url as string, {}, 10_000);
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
 }
 
 // La police Ubuntu-Bold est déjà embarquée en TTF pour le rapport PDF
@@ -80,7 +119,13 @@ async function fetchLogoDataUri(siteUrl: string): Promise<string> {
   return `data:image/png;base64,${buf.toString('base64')}`;
 }
 
-async function renderSlide(slide: Slide, logoDataUri: string, fontData: ArrayBuffer): Promise<Buffer> {
+async function renderSlide(
+  slide: Slide,
+  logoDataUri: string,
+  fontData: ArrayBuffer,
+  coverDataUri: string | null,
+  statText: string
+): Promise<Buffer> {
   const image = new ImageResponse(
     (
       <div
@@ -88,27 +133,32 @@ async function renderSlide(slide: Slide, logoDataUri: string, fontData: ArrayBuf
           width: SIZE, height: SIZE, display: 'flex', flexDirection: 'column',
           justifyContent: 'space-between', alignItems: 'center',
           background: `linear-gradient(135deg, ${VIOLET} 0%, ${MAGENTA} 52%, ${AMBER} 100%)`,
-          padding: 70, fontFamily: 'Ubuntu',
+          padding: 60, fontFamily: 'Ubuntu',
         }}
       >
-        <div style={{ display: 'flex', width: 130, height: 130, borderRadius: 28, overflow: 'hidden', alignSelf: 'flex-start' }}>
-          <img src={logoDataUri} width={130} height={130} />
+        <div style={{ display: 'flex', width: 110, height: 110, borderRadius: 24, overflow: 'hidden', alignSelf: 'flex-start' }}>
+          <img src={logoDataUri} width={110} height={110} />
         </div>
-        <div
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
-            background: 'rgba(21,14,41,0.55)', borderRadius: 36, padding: '50px 60px', gap: 22,
-          }}
-        >
-          <div style={{ display: 'flex', color: '#ffffff', fontSize: 72, fontWeight: 700, lineHeight: 1.15 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+          <div
+            style={{
+              display: 'flex', color: '#ffffff', fontSize: 62, fontWeight: 700, lineHeight: 1.15,
+              textAlign: 'center', background: 'rgba(21,14,41,0.55)', borderRadius: 32, padding: '30px 50px',
+            }}
+          >
             {slide.headline}
           </div>
-          <div style={{ display: 'flex', color: 'rgba(255,255,255,0.85)', fontSize: 30 }}>
-            {slide.subtext}
+          {coverDataUri && (
+            <div style={{ display: 'flex', width: 300, height: 300, borderRadius: 28, overflow: 'hidden', border: `4px solid rgba(255,255,255,0.5)` }}>
+              <img src={coverDataUri} width={300} height={300} style={{ objectFit: 'cover' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', background: 'rgba(21,14,41,0.55)', borderRadius: 24, padding: '14px 28px' }}>
+            <div style={{ display: 'flex', color: 'rgba(255,255,255,0.9)', fontSize: 26, fontWeight: 700 }}>{statText}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', background: '#ffffff', borderRadius: 40, padding: '20px 46px' }}>
-          <div style={{ display: 'flex', color: INK, fontSize: 32, fontWeight: 700 }}>melotones.co</div>
+        <div style={{ display: 'flex', background: '#ffffff', borderRadius: 40, padding: '18px 44px' }}>
+          <div style={{ display: 'flex', color: INK, fontSize: 30, fontWeight: 700 }}>melotones.co</div>
         </div>
       </div>
     ),
@@ -128,9 +178,11 @@ export async function GET(request: Request) {
   try {
     const angle = pickWeeklyAngle();
     const fontData = loadBundledFontTtf();
-    const [slides, logoDataUri] = await Promise.all([
+    const [slides, logoDataUri, coverDataUri, statText] = await Promise.all([
       generateSlides(angle),
       fetchLogoDataUri(process.env.NEXT_PUBLIC_SITE_URL || 'https://melotones.co'),
+      fetchRandomCoverDataUri(),
+      fetchWeeklyStat(),
     ]);
 
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -138,7 +190,7 @@ export async function GET(request: Request) {
     const attachments: { filename: string; content: string }[] = [];
 
     for (let i = 0; i < slides.length; i++) {
-      const png = await renderSlide(slides[i], logoDataUri, fontData);
+      const png = await renderSlide(slides[i], logoDataUri, fontData, coverDataUri, statText);
 
       const path = `${dateStr}-${i + 1}.png`;
       const { error: uploadError } = await supabaseAdmin.storage

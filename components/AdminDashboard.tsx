@@ -239,6 +239,12 @@ export default function AdminDashboard() {
   const [assets, setAssets] = useState<ContentAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetStatusFilter, setAssetStatusFilter] = useState('all');
+  const [canvaPromptAngle, setCanvaPromptAngle] = useState('');
+  const [canvaPromptResult, setCanvaPromptResult] = useState<string | null>(null);
+  const [canvaPromptLoading, setCanvaPromptLoading] = useState(false);
+  const [canvaPromptCopied, setCanvaPromptCopied] = useState(false);
+  const [canvaExporting, setCanvaExporting] = useState(false);
+  const [canvaExportProgress, setCanvaExportProgress] = useState<{ done: number; total: number } | null>(null);
   const [assetSearch, setAssetSearch] = useState('');
   const [assetBusyId, setAssetBusyId] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<CredentialEntry[]>([]);
@@ -578,6 +584,50 @@ export default function AdminDashboard() {
       setAssets(prev => prev.map(a => a.id === id ? { ...a, suggested_caption_fr: data.captionFr, suggested_caption_en: data.captionEn, suggested_hashtags: data.hashtags } : a));
     } else {
       alert(`Échec : ${data.error}`);
+    }
+  };
+
+  const handleGenerateCanvaPrompt = async () => {
+    if (!canvaPromptAngle.trim()) return;
+    setCanvaPromptLoading(true);
+    setCanvaPromptCopied(false);
+    const res = await fetch('/api/admin/canva/generate-prompt', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ angle: canvaPromptAngle }),
+    });
+    const data = await res.json();
+    setCanvaPromptLoading(false);
+    if (res.ok) setCanvaPromptResult(data.prompt);
+    else alert(`Échec : ${data.error}`);
+  };
+
+  const handleCopyCanvaPrompt = async () => {
+    if (!canvaPromptResult) return;
+    await navigator.clipboard.writeText(canvaPromptResult);
+    setCanvaPromptCopied(true);
+    setTimeout(() => setCanvaPromptCopied(false), 2000);
+  };
+
+  // Traite les assets non exportés par lots (respecte maxDuration côté route) —
+  // le bouton se rappelle lui-même tant qu'il reste des assets à traiter,
+  // pour sortir les designs Canva de Canva et les rendre indépendants de
+  // l'abonnement (voir human_task dismissed sur l'Autofill Enterprise).
+  const handleExportCanvaAssets = async () => {
+    setCanvaExporting(true);
+    let done = 0;
+    let total = 0;
+    try {
+      for (;;) {
+        const res = await fetch('/api/admin/canva/export-assets', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) { alert(`Échec : ${data.error}`); break; }
+        done += data.exported;
+        total = data.remaining + done;
+        setCanvaExportProgress({ done, total });
+        if (data.remaining === 0) break;
+      }
+    } finally {
+      setCanvaExporting(false);
     }
   };
 
@@ -1177,6 +1227,51 @@ export default function AdminDashboard() {
               )}
             </div>
           )}
+
+          <div className="card !p-4 mb-6">
+            <h4 className="text-sm font-bold text-gray-800 mb-1">Générer un prompt pour l'IA de Canva</h4>
+            <p className="text-xs text-gray-400 mb-3">
+              Décris un angle (ex: "anniversaire", "diaspora"), colle le résultat dans l'IA de Canva — elle génère le visuel, sur la charte Melotones.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <input
+                value={canvaPromptAngle} onChange={e => setCanvaPromptAngle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleGenerateCanvaPrompt(); }}
+                placeholder="Angle marketing…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                disabled={canvaPromptLoading || !canvaPromptAngle.trim()}
+                onClick={handleGenerateCanvaPrompt}
+                className="btn-primary text-sm px-4 disabled:opacity-50"
+              >
+                {canvaPromptLoading ? 'Génération…' : '✨ Générer'}
+              </button>
+            </div>
+            {canvaPromptResult && (
+              <div>
+                <textarea
+                  readOnly value={canvaPromptResult} rows={10}
+                  className="w-full text-xs font-mono border border-gray-200 rounded-lg p-3 mb-2 bg-gray-50"
+                />
+                <button onClick={handleCopyCanvaPrompt} className="btn-secondary text-xs px-4 py-2">
+                  {canvaPromptCopied ? '✓ Copié' : 'Copier le prompt'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="card !p-4 mb-6">
+            <h4 className="text-sm font-bold text-gray-800 mb-1">Exporter les designs Canva vers le stockage Melotones</h4>
+            <p className="text-xs text-gray-400 mb-3">
+              Télécharge une copie de chaque design synchronisé dans le bucket Storage Melotones — rend la bibliothèque indépendante de l'abonnement Canva.
+            </p>
+            <button disabled={canvaExporting} onClick={handleExportCanvaAssets} className="btn-secondary text-sm px-4 py-2 disabled:opacity-50">
+              {canvaExporting ? `Export en cours… (${canvaExportProgress?.done ?? 0}/${canvaExportProgress?.total ?? '?'})` : 'Exporter tous les designs'}
+            </button>
+            {!canvaExporting && canvaExportProgress && (
+              <p className="text-xs text-gray-500 mt-2">{canvaExportProgress.done}/{canvaExportProgress.total} exportés.</p>
+            )}
+          </div>
 
           <button onClick={() => setAssetLibraryOpen(o => !o)} className="text-sm font-bold text-brand-600 hover:text-brand-700 mb-3">
             {assetLibraryOpen ? '▾' : '▸'} Bibliothèque de contenu Canva
