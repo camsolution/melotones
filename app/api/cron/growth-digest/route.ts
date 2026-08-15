@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
+import { verifyCronSecret, getAdminEmails, reportRun } from '@/lib/cron';
 import { computeAnalytics } from '@/lib/analytics';
 import { computeProviderBalanceEstimate } from '@/lib/providerBalance';
 import { sendEmail } from '@/lib/email';
@@ -22,13 +22,13 @@ export async function GET(request: Request) {
     const pct = (v: number | null) => v === null ? 'n/a' : `${(v * 100).toFixed(1)}%`;
     const summaryText = `${analytics.uniqueVisitors} visiteurs uniques, ${analytics.signupsInPeriod} inscriptions, activation ${pct(analytics.activationRate)}, conversion ${pct(analytics.conversionRate)}, ~${providerBalance.estimatedRemainingGenerations ?? '?'} générations MusicGPT restantes, ${pendingTasks.length} tâche(s) en attente.`;
 
-    const adminEmail = await getAdminEmail();
-    if (adminEmail) {
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
       const tasksHtml = pendingTasks.length > 0
         ? `<h2>Tâches en attente (${pendingTasks.length})</h2><ul>${pendingTasks.map((t) => `<li><strong>${t.title}</strong>${t.description ? ` — ${t.description}` : ''}</li>`).join('')}</ul><p style="color:#888;font-size:12px;">À traiter ou dans le dashboard admin, onglet Automatisation.</p>`
         : '';
       await sendEmail(
-        adminEmail,
+        adminEmails,
         `Rapport de croissance Melotones — ${new Date().toLocaleDateString('fr-FR')}`,
         `<h2>Rapport de croissance (30 derniers jours)</h2>
          <ul>

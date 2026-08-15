@@ -28,7 +28,7 @@ vi.mock('@/lib/humanTasks', () => ({
 }));
 
 vi.mock('@/lib/cron', () => ({
-  getAdminEmail: vi.fn().mockResolvedValue('admin@melotones.co'),
+  getAdminEmails: vi.fn().mockResolvedValue(['admin@melotones.co']),
 }));
 
 vi.mock('./moderation', () => ({
@@ -38,7 +38,7 @@ vi.mock('./moderation', () => ({
 import { supabaseAdmin } from '@/lib/admin';
 import { sendEmail } from '@/lib/email';
 import { createHumanTask } from '@/lib/humanTasks';
-import { getAdminEmail } from '@/lib/cron';
+import { getAdminEmails } from '@/lib/cron';
 import { classifyMessage } from './moderation';
 
 // Helper pour simuler une réponse de supabaseAdmin.from('testimonials')...

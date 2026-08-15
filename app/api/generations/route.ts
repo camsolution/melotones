@@ -5,7 +5,7 @@ import { generateMusic } from '@/lib/music-generator';
 import { autoRefund } from '@/lib/refunds';
 import { VOICE_LANGUAGE_NAMES, computeMessageBudget, buildPrompt } from '@/lib/promptBudget';
 import { logProviderError, localizeProviderError, isProviderOutOfCredits } from '@/lib/providerErrors';
-import { getAdminEmail } from '@/lib/cron';
+import { getAdminEmails } from '@/lib/cron';
 import { sendEmail } from '@/lib/email';
 
 import { classifyMessage, userFacingModerationMessage } from '@/lib/moderation';
@@ -229,10 +229,10 @@ export async function POST(request: Request) {
           topped_up_at: new Date().toISOString(),
           updated_by: user.id,
         });
-      const adminEmail = await getAdminEmail();
-      if (adminEmail) {
+      const adminEmails = await getAdminEmails();
+      if (adminEmails.length > 0) {
         await sendEmail(
-          adminEmail,
+          adminEmails,
           '🚨 MusicGPT : crédits épuisés',
           `<p>Le fournisseur MusicGPT a renvoyé <strong>402 INSUFFICIENT_CREDITS</strong>.<br>Génération <code>${generation.id}</code> (user ${user.id}).<br>Rechargez les crédits sur le dashboard MusicGPT.</p>`
         ).catch(() => {});

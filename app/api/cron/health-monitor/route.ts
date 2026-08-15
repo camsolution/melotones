@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/admin';
-import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
+import { verifyCronSecret, getAdminEmails, reportRun } from '@/lib/cron';
 import { isProviderOutOfCredits } from '@/lib/providerErrors';
 import { computeProviderBalanceEstimate } from '@/lib/providerBalance';
 import { sendEmail } from '@/lib/email';
@@ -55,10 +55,10 @@ export async function GET(request: Request) {
     }
 
     const summaryText = issues.join(' ');
-    const adminEmail = await getAdminEmail();
-    if (adminEmail) {
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
       await sendEmail(
-        adminEmail,
+        adminEmails,
         `⚠️ Alerte Melotones — ${issues.length} problème(s) détecté(s)`,
         `<h2>Surveillance santé Melotones</h2><ul>${issues.map((i) => `<li>${i}</li>`).join('')}</ul><p style="color:#888;font-size:12px;">Ajouté aussi comme tâche à traiter dans le dashboard admin (onglet Automatisation).</p>`
       );

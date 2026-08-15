@@ -17,16 +17,22 @@ export function verifyCronSecret(request: Request): boolean {
   return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
-export async function getAdminEmail(): Promise<string | null> {
-  const { data: adminCredit } = await supabaseAdmin
+// Tous les comptes admin reçoivent les alertes système — auparavant un seul
+// (le premier retourné par la requête, sans ORDER BY donc non garanti) recevait
+// tout, ce qui laissait le ou les autres admins dans le noir sans qu'on le sache.
+export async function getAdminEmails(): Promise<string[]> {
+  const { data: adminCredits } = await supabaseAdmin
     .from('user_credits')
     .select('user_id')
-    .eq('is_admin', true)
-    .limit(1)
-    .maybeSingle();
-  if (!adminCredit) return null;
-  const { data } = await supabaseAdmin.auth.admin.getUserById(adminCredit.user_id);
-  return data.user?.email || null;
+    .eq('is_admin', true);
+  if (!adminCredits || adminCredits.length === 0) return [];
+  const emails = await Promise.all(
+    adminCredits.map(async (row) => {
+      const { data } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
+      return data.user?.email || null;
+    })
+  );
+  return emails.filter((e): e is string => !!e);
 }
 
 type RunStatus = 'success' | 'alert' | 'failure';

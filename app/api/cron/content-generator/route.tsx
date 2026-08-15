@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ImageResponse } from 'next/og';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseAdmin } from '@/lib/admin';
-import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
+import { verifyCronSecret, getAdminEmails, reportRun } from '@/lib/cron';
 import { sendEmail } from '@/lib/email';
 import fs from 'fs';
 import path from 'path';
@@ -156,10 +156,10 @@ export async function GET(request: Request) {
 
     const summaryText = `Angle "${angle}" — 2 visuels générés.`;
 
-    const adminEmail = await getAdminEmail();
-    if (adminEmail) {
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
       await sendEmail(
-        adminEmail,
+        adminEmails,
         `Contenu réseaux sociaux Melotones — ${dateStr}`,
         `<h2>Nouveaux visuels — angle "${angle}"</h2>
          ${uploaded.map((u, i) => `<p><strong>Visuel ${i + 1}</strong> (en pièce jointe)<br>Légende suggérée : ${slides[i].caption}</p>`).join('')}

@@ -2,7 +2,7 @@
 import { supabaseAdmin } from '@/lib/admin';
 import { sendEmail } from '@/lib/email';
 import { createHumanTask } from '@/lib/humanTasks';
-import { getAdminEmail } from '@/lib/cron';
+import { getAdminEmails } from '@/lib/cron';
 
 export type ReviewType = 'SONG' | 'PLATFORM';
 export type ModerationAction = 'ALLOW' | 'HUMAN_REVIEW' | 'HIDE_AND_ALERT_ADMIN' | 'REJECT';
@@ -168,10 +168,10 @@ export async function moderateUserReview(input: {
   // 6. Alerte admin selon gravité
   if (adminAlertRequired || action === 'HIDE_AND_ALERT_ADMIN') {
     const severity = severityLevels.includes('URGENT') ? 'URGENT' : 'HIGH';
-    const adminEmail = await getAdminEmail();
-    if (adminEmail) {
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
       await sendEmail(
-        adminEmail,
+        adminEmails,
         `🚨 Alerte modération avis — ${severity}`,
         `<p>Un avis nécessite une modération.</p><p>Type : ${reviewType}</p><p>Catégories : ${categories.join(', ')}</p><p>Message : ${text.slice(0, 200)}</p>`
       );

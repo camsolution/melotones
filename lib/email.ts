@@ -99,7 +99,7 @@ ${supportWhatsapp ? `
 }
 
 export async function sendEmail(
-  to: string,
+  to: string | string[],
   subject: string,
   html: string,
   attachments?: { filename: string; content: string }[]

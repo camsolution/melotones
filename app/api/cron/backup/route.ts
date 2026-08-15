@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/admin';
-import { verifyCronSecret, getAdminEmail, reportRun } from '@/lib/cron';
+import { verifyCronSecret, getAdminEmails, reportRun } from '@/lib/cron';
 import { buildBackupZip } from '@/lib/backup';
 import { sendEmail } from '@/lib/email';
 
@@ -32,10 +32,10 @@ export async function GET(request: Request) {
     const sizeMb = (buffer.length / (1024 * 1024)).toFixed(1);
     const summaryText = `Sauvegarde envoyée avec succès, ${sizeMb} Mo. ${summary.join(', ')}`;
 
-    const adminEmail = await getAdminEmail();
-    if (adminEmail) {
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
       await sendEmail(
-        adminEmail,
+        adminEmails,
         `Sauvegarde Melotones — ${dateStr}`,
         `<p>La sauvegarde hebdomadaire automatique de Melotones est prête (${sizeMb} Mo).</p>
          <p><a href="${signed.signedUrl}">Télécharger la sauvegarde</a> (lien valable 7 jours)</p>
