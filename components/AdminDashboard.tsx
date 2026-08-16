@@ -1578,17 +1578,19 @@ export default function AdminDashboard() {
           <p className="text-xs text-gray-400 mb-3">
             Rappelées automatiquement chaque semaine dans le rapport de croissance par email. Les agents peuvent aussi en déposer une eux-mêmes quand ils détectent quelque chose qui a besoin de votre validation.
           </p>
-          <div className="space-y-2 mb-4">
-            {humanTasks.filter(t => t.status === 'pending').length === 0 && (
-              <p className="text-gray-500 text-sm">Aucune tâche en attente.</p>
-            )}
-            {humanTasks.filter(t => t.status === 'pending').map(t => (
+          {(() => {
+            const pending = humanTasks.filter(t => t.status === 'pending');
+            const missions = pending.filter(t => t.source === 'mission');
+            const actions = pending.filter(t => t.source !== 'mission');
+            const RESPONSE_MARKER = "— Réponse de l'agent —";
+
+            const renderActionCard = (t: HumanTask) => (
               <div key={t.id} className="card flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{t.title}</p>
                   {t.description && <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{t.description}</p>}
                   <p className="text-xs text-gray-400 mt-1">
-                    {t.source === 'admin' ? 'Ajoutée manuellement' : t.source === 'mission' ? 'Mission déposée depuis l\'espace de travail' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`}
+                    {t.source === 'admin' ? 'Ajoutée manuellement' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`}
                     {' · '}{new Date(t.created_at).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
@@ -1597,8 +1599,56 @@ export default function AdminDashboard() {
                   <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'dismiss')} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1">Ignorer</button>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+
+            return (
+              <>
+                {/* Actions concrètes en premier — c'est ce qui demande vraiment un
+                    clic, séparé des questions posées à l'agent pour ne pas les
+                    noyer dans le même mur de texte. */}
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                  ✅ Actions à faire {actions.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 normal-case">{actions.length}</span>}
+                </h4>
+                <div className="space-y-2 mb-5">
+                  {actions.length === 0 && <p className="text-gray-500 text-sm">Aucune action en attente.</p>}
+                  {actions.map(renderActionCard)}
+                </div>
+
+                {missions.length > 0 && (
+                  <>
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      💬 Tes questions à l'agent <span className="ml-1 px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 normal-case">{missions.length}</span>
+                    </h4>
+                    <div className="space-y-3 mb-5">
+                      {missions.map(t => {
+                        const [question, response] = (t.description || '').split(`\n\n${RESPONSE_MARKER}\n`);
+                        return (
+                          <div key={t.id} className="card">
+                            <p className="text-sm font-medium text-gray-800">{question || t.title}</p>
+                            {response ? (
+                              <div className="mt-2 border-l-2 border-brand-300 bg-brand-50 rounded-r-lg px-3 py-2">
+                                <p className="text-[10px] font-bold text-brand-600 uppercase tracking-wide mb-1">Réponse de l'agent</p>
+                                <p className="text-xs text-gray-700 whitespace-pre-wrap">{response}</p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic mt-1">En attente de réponse…</p>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString('fr-FR')}</p>
+                              <div className="flex gap-2 flex-none">
+                                <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'done')} className="btn-secondary text-xs px-3 py-1">Fait</button>
+                                <button disabled={busyId === t.id} onClick={() => handleHumanTaskAction(t.id, 'dismiss')} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1">Ignorer</button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
           <p className="text-xs text-gray-400 mb-1">Ajout rapide (todo simple, sans passer par l'espace de travail) :</p>
           <div className="card flex flex-col sm:flex-row gap-2 mb-4">
             <input
@@ -1631,36 +1681,64 @@ export default function AdminDashboard() {
             </details>
           )}
 
-          <h3 className="text-sm font-bold mb-2 text-gray-700">Historique des exécutions</h3>
+          <h3 className="text-sm font-bold mb-2 text-gray-700">État des agents</h3>
           {automationRuns.length === 0 ? (
             <p className="text-gray-500">Aucune exécution enregistrée pour l'instant.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="py-2 pr-4">Agent</th>
-                    <th className="py-2 pr-4">Statut</th>
-                    <th className="py-2 pr-4">Résumé</th>
-                    <th className="py-2 pr-4">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {automationRuns.map(r => (
-                    <tr key={r.id} className="border-b border-gray-100">
-                      <td className="py-2 pr-4">{AUTOMATION_AGENTS.find(a => a.slug === r.agent_slug)?.name || r.agent_slug}</td>
-                      <td className="py-2 pr-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${r.status === 'success' ? 'bg-green-100 text-green-700' : r.status === 'alert' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                          {r.status === 'success' ? 'OK' : r.status === 'alert' ? 'Alerte' : 'Échec'}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-4 text-gray-600">{r.summary || '—'}</td>
-                      <td className="py-2 pr-4 text-gray-400">{new Date(r.ran_at).toLocaleString('fr-FR')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Un seul état par agent (le plus récent) au lieu du journal complet
+                  — c'est la question qu'on se pose en un coup d'œil : "est-ce que ça
+                  tourne bien ?", pas l'historique détaillé. */}
+              <div className="space-y-1.5 mb-3">
+                {AUTOMATION_AGENTS.map(agent => {
+                  const latest = automationRuns.find(r => r.agent_slug === agent.slug);
+                  return (
+                    <div key={agent.slug} className="flex items-center justify-between gap-3 text-sm border-b border-gray-100 py-1.5">
+                      <span className="text-gray-700">{agent.name}</span>
+                      {latest ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-gray-400 text-xs truncate max-w-[280px]" title={latest.summary || undefined}>{latest.summary || '—'}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full flex-none ${latest.status === 'success' ? 'bg-green-100 text-green-700' : latest.status === 'alert' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                            {latest.status === 'success' ? 'OK' : latest.status === 'alert' ? 'Alerte' : 'Échec'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 flex-none">Jamais exécuté</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <details>
+                <summary className="text-xs text-gray-400 cursor-pointer mb-2">Historique complet ({automationRuns.length} exécutions)</summary>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px]">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b border-gray-200">
+                        <th className="py-2 pr-4">Agent</th>
+                        <th className="py-2 pr-4">Statut</th>
+                        <th className="py-2 pr-4">Résumé</th>
+                        <th className="py-2 pr-4">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {automationRuns.map(r => (
+                        <tr key={r.id} className="border-b border-gray-100">
+                          <td className="py-2 pr-4">{AUTOMATION_AGENTS.find(a => a.slug === r.agent_slug)?.name || r.agent_slug}</td>
+                          <td className="py-2 pr-4">
+                            <span className={`text-xs px-2 py-1 rounded-full ${r.status === 'success' ? 'bg-green-100 text-green-700' : r.status === 'alert' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                              {r.status === 'success' ? 'OK' : r.status === 'alert' ? 'Alerte' : 'Échec'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 text-gray-600">{r.summary || '—'}</td>
+                          <td className="py-2 pr-4 text-gray-400">{new Date(r.ran_at).toLocaleString('fr-FR')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </>
           )}
         </div>
       )}
