@@ -59,14 +59,17 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {songs.map((song) => (
-          <div key={song.id} className="card overflow-hidden">
+          <div key={song.id} className="card overflow-hidden p-0 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
             {/* Pas de group/group-hover ici : sur Safari iOS et certains
                 Android, quand le style de survol dépend d'un ANCÊTRE plutôt
                 que de l'élément tapé lui-même, le premier tap ne fait que
                 simuler le survol au lieu de déclencher le clic — il en faut
                 un second. hover: direct + active: (retour tactile immédiat)
-                évite complètement cette ambiguïté. */}
-            <div className={`relative h-40 bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
+                évite complètement cette ambiguïté.
+                aspect-square, pas h-40 : les covers générées par CoverStudio
+                sont carrées (voir SongDetail/FeaturedSong) — un ratio large
+                les recadrait en bannière et coupait l'essentiel du visuel. */}
+            <div className={`relative aspect-square w-full bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
               {song.cover_url && (
                 <img
                   decoding="async" loading="lazy"
@@ -74,15 +77,15 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
-              <div className="absolute inset-0 bg-black/10 transition-colors" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/10" />
               <button
                 aria-label={playingId === song.id ? t('Mettre en pause', 'Pause') : t('Écouter', 'Play')}
                 onClick={() => toggle(song)}
-                className="relative z-10 w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                className="relative z-10 w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 active:scale-95 transition-transform cursor-pointer"
               >
                 {playingId === song.id
-                  ? <Pause className="w-6 h-6 text-brand-700 fill-brand-700" />
-                  : <Play className="w-6 h-6 text-brand-700 fill-brand-700 ml-0.5" />}
+                  ? <Pause className="w-7 h-7 text-brand-700 fill-brand-700" />
+                  : <Play className="w-7 h-7 text-brand-700 fill-brand-700 ml-0.5" />}
               </button>
             </div>
             <div className="p-5">
