@@ -48,8 +48,15 @@ export async function answerMission(missionText: string): Promise<string | null>
     } : null,
   };
 
+  // Modèle différent des autres fonctionnalités IA du projet (toutes sur
+  // gemini-3.6-flash) — le quota gratuit Gemini (20 req/jour) est compté par
+  // modèle, pas partagé au niveau du projet (confirmé en direct le
+  // 2026-08-16 : gemini-3.1-flash-lite répond alors que gemini-3.6-flash est
+  // à sec). Isole l'agent de mission du quota déjà tendu du reste de l'app,
+  // sans avoir besoin d'activer la facturation. À retirer si un jour la
+  // facturation est confirmée active — un seul modèle partagé sera plus simple.
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
   const prompt = `Tu es l'agent opérationnel de Melotones (plateforme de chansons personnalisées par IA pour la diaspora africaine). L'admin te confie une mission en langage libre et attend une vraie réponse.
 

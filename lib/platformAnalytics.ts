@@ -85,8 +85,12 @@ async function generateStrategyNote(rows: PublicationRow[]): Promise<string | nu
     .join('\n');
   if (!dataLines) return null;
 
+  // Même choix de modèle que lib/missionAgent.ts (qui appelle cette fonction
+  // via computeAgentReport) : gemini-3.1-flash-lite a son propre quota
+  // gratuit séparé de gemini-3.6-flash, déjà sous tension avec le reste de
+  // l'app (chatbot, modération, légendes...).
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
   const prompt = `Tu analyses les performances réelles des contenus marketing de Melotones (chansons personnalisées par IA, diaspora africaine) sur les réseaux sociaux.
 
