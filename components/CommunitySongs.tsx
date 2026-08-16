@@ -57,19 +57,20 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
         <h2 className="text-3xl font-bold text-gray-800">{t('Créations de la communauté', 'Community Creations')}</h2>
         <p className="text-gray-600 mt-2 max-w-2xl mx-auto">{t('Écoutez des morceaux uniques créés par nos utilisateurs pour leurs proches.', 'Listen to unique songs created by our users for their loved ones.')}</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Grille de tuiles carrées façon streaming plutôt que de grosses cartes
+          3-par-ligne — pensée pour tenir visuellement à des centaines/milliers
+          de titres, pas seulement la poignée actuelle. La taille de la tuile
+          est celle du format de cover (carré), pas une carte qui l'encadre. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
         {songs.map((song) => (
-          <div key={song.id} className="card overflow-hidden p-0 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
-            {/* Pas de group/group-hover ici : sur Safari iOS et certains
-                Android, quand le style de survol dépend d'un ANCÊTRE plutôt
-                que de l'élément tapé lui-même, le premier tap ne fait que
-                simuler le survol au lieu de déclencher le clic — il en faut
-                un second. hover: direct + active: (retour tactile immédiat)
-                évite complètement cette ambiguïté.
-                aspect-square, pas h-40 : les covers générées par CoverStudio
-                sont carrées (voir SongDetail/FeaturedSong) — un ratio large
-                les recadrait en bannière et coupait l'essentiel du visuel. */}
-            <div className={`relative aspect-square w-full bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
+          <div key={song.id}>
+            {/* Pas de group/group-hover sur le bouton play lui-même : sur
+                Safari iOS et certains Android, quand le style de survol
+                dépend d'un ANCÊTRE plutôt que de l'élément tapé, le premier
+                tap ne fait que simuler le survol au lieu de déclencher le
+                clic — il en faut un second. hover: direct + active: (retour
+                tactile immédiat) évite complètement cette ambiguïté. */}
+            <div className={`relative aspect-square w-full rounded-xl overflow-hidden shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
               {song.cover_url && (
                 <img
                   decoding="async" loading="lazy"
@@ -77,28 +78,28 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/5" />
               <button
                 aria-label={playingId === song.id ? t('Mettre en pause', 'Pause') : t('Écouter', 'Play')}
                 onClick={() => toggle(song)}
-                className="relative z-10 w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                className="relative z-10 w-11 h-11 sm:w-12 sm:h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 active:scale-95 transition-transform cursor-pointer"
               >
                 {playingId === song.id
-                  ? <Pause className="w-7 h-7 text-brand-700 fill-brand-700" />
-                  : <Play className="w-7 h-7 text-brand-700 fill-brand-700 ml-0.5" />}
+                  ? <Pause className="w-5 h-5 text-brand-700 fill-brand-700" />
+                  : <Play className="w-5 h-5 text-brand-700 fill-brand-700 ml-0.5" />}
               </button>
-            </div>
-            <div className="p-5">
-              <h3 className="font-semibold text-lg text-gray-800">{song.title}</h3>
-              <p className="text-sm text-gray-500 capitalize">{song.occasion} · {song.style}</p>
-              {errorId === song.id && (
-                <p className="text-xs text-red-500 mt-1">{t('Lecture impossible sur cet appareil — réessaie.', "Playback failed on this device — try again.")}</p>
-              )}
               <audio
                 ref={(el) => { if (el) audioRefs.current.set(song.id, el); else audioRefs.current.delete(song.id); }}
                 src={song.audio_url} preload="none" playsInline className="hidden"
                 onEnded={() => setPlayingId((p) => (p === song.id ? null : p))}
               />
+            </div>
+            <div className="pt-2 px-0.5">
+              <h3 className="font-semibold text-sm text-gray-800 truncate">{song.title}</h3>
+              <p className="text-xs text-gray-500 capitalize truncate">{song.occasion} · {song.style}</p>
+              {errorId === song.id && (
+                <p className="text-[11px] text-red-500 mt-0.5">{t('Lecture impossible — réessaie.', "Playback failed — try again.")}</p>
+              )}
             </div>
           </div>
         ))}
