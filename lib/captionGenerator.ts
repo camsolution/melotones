@@ -20,6 +20,19 @@ export async function generateCaptionSuggestion(input: {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
+  // TikTok et Instagram ne rendent pas les URL de légende cliquables (le lien
+  // n'est actif que dans la bio du profil) — écrire "melotones.co" en toutes
+  // lettres dans ces légendes donne un CTA que personne ne peut cliquer,
+  // constaté en réel : des vues/likes sans clic vers le site. Sur ces deux
+  // plateformes, l'appel à l'action doit pointer vers la bio, pas répéter
+  // l'URL. Facebook/YouTube affichent le lien cliquable dans le post/la
+  // description, donc l'URL directe y reste pertinente.
+  const platform = (input.platform || '').toLowerCase();
+  const linkNotClickable = platform.includes('tiktok') || platform.includes('instagram');
+  const ctaInstruction = linkNotClickable
+    ? `Le lien melotones.co N'EST PAS cliquable dans une légende ${platform.includes('tiktok') ? 'TikTok' : 'Instagram'} — ne l'écris jamais dans le texte. L'appel à l'action doit explicitement dire de cliquer le lien dans la bio (ex: "🔗 Lien dans la bio" ou "Lien en bio pour personnaliser ta chanson 👆").`
+    : `Un appel à l'action clair avec l'URL melotones.co, cliquable sur cette plateforme.`;
+
   const prompt = `Tu es un expert en marketing des réseaux sociaux pour Melotones, une plateforme qui compose des chansons personnalisées par IA pour la diaspora africaine (anniversaires, mariages, hommages...).
 
 Rédige une suggestion de légende pour ce visuel marketing, à publier sur "${input.platform || 'réseaux sociaux'}" :
@@ -29,7 +42,7 @@ Rédige une suggestion de légende pour ce visuel marketing, à publier sur "${i
 Consignes :
 - Ton chaleureux, direct, jamais de fausse promesse ni de statistique inventée
 - Pas de symbole ™/® non vérifié
-- Un appel à l'action clair vers melotones.co
+- ${ctaInstruction}
 - Reste factuel sur ce que fait réellement Melotones (composer une chanson personnalisée par IA)
 
 Réponds en JSON strict, sans markdown, sans commentaire :
