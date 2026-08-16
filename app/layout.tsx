@@ -3,6 +3,7 @@ import { Manrope, Unbounded } from 'next/font/google';
 import AppShell from '@/components/AppShell';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { createServerClientWithCookies } from '@/lib/supabase/server';
+import type { Session } from '@supabase/supabase-js';
 import type { Metadata, Viewport } from 'next';
 
 const manrope = Manrope({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-manrope' });
@@ -79,7 +80,24 @@ const jsonLd = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerClientWithCookies();
-  const { data: { session } } = await supabase.auth.getSession();
+  // Même filet que lib/supabase/middleware.ts : ce layout englobe TOUTE page
+  // de l'app, donc un aller-retour réseau vers Supabase Auth qui traîne
+  // (réseau mobile, iCloud Private Relay — plus fréquent sur Safari iOS)
+  // plantait "This page couldn't load. A server error occurred." sur
+  // n'importe quelle page. Le fix du middleware seul ne couvrait pas cet
+  // appel identique et non protégé ici — mieux vaut rendre la page comme si
+  // l'utilisateur n'était pas connecté (AppShell referra la vérification
+  // côté client) que de bloquer le rendu entier.
+  let session: Session | null = null;
+  try {
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), 5_000)),
+    ]);
+    session = result.data.session;
+  } catch (err) {
+    console.error('RootLayout: getSession failed, rendering without session', err);
+  }
   return (
     <html lang="fr" className={`${manrope.variable} ${unbounded.variable}`}>
       <body className="font-sans antialiased bg-gray-50 text-gray-900">
