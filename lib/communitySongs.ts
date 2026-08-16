@@ -15,7 +15,7 @@ export async function fetchPublicCommunitySongs(filters: {
 }): Promise<ExampleSong[]> {
   let query = supabaseAdmin
     .from('generations')
-    .select('id, occasion, style, audio_url')
+    .select('id, occasion, style, audio_url, cover_url')
     .eq('is_public', true)
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
@@ -37,6 +37,7 @@ export async function fetchPublicCommunitySongs(filters: {
       audio_url: g.audio_url as string,
       description: null,
       plays: 0,
+      cover_url: g.cover_url as string | null,
     }));
 
   if (!filters.q) return songs;

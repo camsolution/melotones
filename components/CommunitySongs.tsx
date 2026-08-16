@@ -67,6 +67,13 @@ export default function CommunitySongs({ songs }: { songs: ExampleSong[] }) {
                 un second. hover: direct + active: (retour tactile immédiat)
                 évite complètement cette ambiguïté. */}
             <div className={`relative h-40 bg-gradient-to-br ${occasionColors[song.occasion] || 'from-brand-300 to-pink-300'} flex items-center justify-center`}>
+              {song.cover_url && (
+                <img
+                  decoding="async" loading="lazy"
+                  src={song.cover_url} alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-black/10 transition-colors" />
               <button
                 aria-label={playingId === song.id ? t('Mettre en pause', 'Pause') : t('Écouter', 'Play')}
