@@ -572,22 +572,27 @@ export default function AdminDashboard() {
     else alert('Erreur.');
   };
 
-  // Espace de travail IA (P0 #3 du plan de croissance) : une mission écrite
-  // librement devient une tâche priorisable dans la même file que les tâches
-  // manuelles — pas de nouvelle table, pas de nouvel agent, juste un point
-  // d'entrée dédié à des objectifs de croissance plutôt qu'à des todos.
+  // Espace de travail IA : une mission écrite librement est envoyée à l'agent
+  // (contexte réel du produit + Gemini, voir lib/missionAgent.ts) qui répond
+  // directement — la question et la réponse restent visibles ensemble comme
+  // tâche dans la liste ci-dessous, pas juste un dépôt silencieux.
   const handleSubmitMission = async () => {
     const text = missionText.trim();
     if (!text) return;
     setBusyId('new-mission');
-    const title = text.length > 70 ? `${text.slice(0, 70)}…` : text;
-    const res = await fetch('/api/admin/human-tasks', {
+    const res = await fetch('/api/admin/missions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description: text, source: 'mission' }),
+      body: JSON.stringify({ mission: text }),
     });
+    const data = await res.json();
     setBusyId(null);
-    if (res.ok) { setMissionText(''); loadAll(); }
-    else alert('Erreur création tâche.');
+    if (res.ok) {
+      setMissionText('');
+      loadAll();
+      if (data.warning) alert(data.warning);
+    } else {
+      alert(`Erreur : ${data.error || 'échec de la mission.'}`);
+    }
   };
 
   const handleCanvaSync = async (dryRun: boolean) => {
@@ -1546,14 +1551,14 @@ export default function AdminDashboard() {
             })}
           </div>
 
-          <h3 className="text-sm font-bold mb-1 text-gray-700">🧭 Espace de travail — donne une mission</h3>
+          <h3 className="text-sm font-bold mb-1 text-gray-700">🧭 Espace de travail — pose une question à l'agent</h3>
           <p className="text-xs text-gray-400 mb-3">
-            Écris un objectif en langage libre (ex : « Analyse pourquoi les visiteurs ne s'inscrivent pas suffisamment »). Elle devient une tâche priorisable ci-dessous — aucune exécution automatique n'est déclenchée.
+            Écris une question ou un objectif en langage libre (ex : « Analyse pourquoi les visiteurs ne s'inscrivent pas suffisamment »). L'agent répond directement, à partir des vraies données du produit — sa réponse apparaît sous la tâche ci-dessous. Il ne peut exécuter aucune action réelle lui-même (publier, payer, modifier une donnée sensible) : si la mission en demande une, il te dira quoi faire à la place.
           </p>
           <div className="card flex flex-col gap-2 mb-6">
             <textarea
               value={missionText} onChange={e => setMissionText(e.target.value)}
-              placeholder="Ta mission…" rows={3} maxLength={1000}
+              placeholder="Ta question ou ta mission…" rows={3} maxLength={1000}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
             />
             <button
@@ -1561,7 +1566,7 @@ export default function AdminDashboard() {
               onClick={handleSubmitMission}
               className="btn-primary text-sm px-4 self-end disabled:opacity-50"
             >
-              {busyId === 'new-mission' ? 'Envoi…' : 'Envoyer à l\'équipe →'}
+              {busyId === 'new-mission' ? "L'agent réfléchit…" : 'Envoyer à l\'agent →'}
             </button>
           </div>
 
@@ -1581,7 +1586,7 @@ export default function AdminDashboard() {
               <div key={t.id} className="card flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{t.title}</p>
-                  {t.description && <p className="text-xs text-gray-500 mt-1">{t.description}</p>}
+                  {t.description && <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{t.description}</p>}
                   <p className="text-xs text-gray-400 mt-1">
                     {t.source === 'admin' ? 'Ajoutée manuellement' : t.source === 'mission' ? 'Mission déposée depuis l\'espace de travail' : `Déposée par ${t.source.replace('agent:', "l'agent ")}`}
                     {' · '}{new Date(t.created_at).toLocaleDateString('fr-FR')}
