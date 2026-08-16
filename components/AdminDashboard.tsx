@@ -248,6 +248,7 @@ export default function AdminDashboard() {
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetStatusFilter, setAssetStatusFilter] = useState('all');
   const [canvaPromptAngle, setCanvaPromptAngle] = useState('');
+  const [canvaPromptFormat, setCanvaPromptFormat] = useState<'post' | 'short'>('post');
   const [canvaPromptResult, setCanvaPromptResult] = useState<string | null>(null);
   const [canvaPromptLoading, setCanvaPromptLoading] = useState(false);
   const [canvaPromptCopied, setCanvaPromptCopied] = useState(false);
@@ -683,7 +684,7 @@ export default function AdminDashboard() {
     setCanvaPromptCopied(false);
     const res = await fetch('/api/admin/canva/generate-prompt', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ angle: canvaPromptAngle }),
+      body: JSON.stringify({ angle: canvaPromptAngle, format: canvaPromptFormat }),
     });
     const data = await res.json();
     setCanvaPromptLoading(false);
@@ -1323,6 +1324,20 @@ export default function AdminDashboard() {
             <p className="text-xs text-gray-400 mb-3">
               Décris un angle (ex: "anniversaire", "diaspora"), colle le résultat dans l'IA de Canva — elle génère le visuel, sur la charte Melotones.
             </p>
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => setCanvaPromptFormat('post')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${canvaPromptFormat === 'post' ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-500'}`}
+              >
+                Post (image carrée)
+              </button>
+              <button
+                onClick={() => setCanvaPromptFormat('short')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${canvaPromptFormat === 'short' ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-500'}`}
+              >
+                Short/Reel vidéo (avec musique de fond)
+              </button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <input
                 value={canvaPromptAngle} onChange={e => setCanvaPromptAngle(e.target.value)}

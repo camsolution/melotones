@@ -1,9 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+export type CanvaFormat = 'post' | 'short';
+
 export type CanvaPromptInput = {
   angle: string; // ex: "anniversaire", "diaspora", ou un thème libre
   occasion?: string | null;
   style?: string | null;
+  format?: CanvaFormat; // 'post' = image statique carrée, 'short' = vidéo verticale TikTok/Reels/Shorts
 };
 
 export type CanvaPromptResult = {
@@ -16,11 +19,23 @@ export type CanvaPromptResult = {
 // vérifiée contre l'éditeur Canva réel — seule la partie créative (accroche,
 // sous-titre, description du visuel) est déléguée à Gemini, pour ne jamais
 // perdre la cohérence de marque d'une génération à l'autre.
-function buildCanvaAIPrompt(headline: string, subtitle: string, imageDescription: string): string {
-  return `Crée un post Instagram carré (1080x1080 px) pour Melotones, une plateforme
+function buildCanvaAIPrompt(headline: string, subtitle: string, imageDescription: string, format: CanvaFormat): string {
+  const formatIntro = format === 'short'
+    ? `Crée une vidéo courte verticale (format Short/Reel/TikTok, 1080x1920 px)`
+    : `Crée un post Instagram carré (1080x1080 px)`;
+  // Ce visuel finit exporté en vidéo pour TikTok/YouTube (voir
+  // exportCanvaDesignAsVideo) — sans piste audio ajoutée dans Canva, la vidéo
+  // exportée reste muette. Demander la musique directement à la création
+  // évite tout montage audio côté serveur : Canva l'intègre nativement dans
+  // le design, donc dans l'export vidéo qui en découle.
+  const musicLine = format === 'short'
+    ? `\n\nAjoute une musique de fond depuis la bibliothèque audio de Canva : entraînante, chaleureuse, en accord avec l'ambiance ${imageDescription.toLowerCase().includes('calme') ? 'douce' : 'festive'} du visuel — volume modéré pour ne pas couvrir le texte. Choisis un morceau libre de droits de la bibliothèque Canva, jamais un titre protégé.`
+    : '';
+
+  return `${formatIntro} pour Melotones, une plateforme
 qui compose des chansons personnalisées par intelligence artificielle pour
 la diaspora africaine (anniversaires, mariages, hommages, félicitations...),
-dans des styles comme Afrobeat, Coupé-Décalé, Gospel, Zouk, Rap, Salsa.
+dans des styles comme Afrobeat, Coupé-Décalé, Gospel, Zouk, Rap, Salsa.${musicLine}
 
 Palette de marque à respecter strictement :
 - Violet principal #7C3AED
@@ -59,6 +74,7 @@ export async function generateCanvaDesignPrompt(input: CanvaPromptInput): Promis
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const format: CanvaFormat = input.format === 'short' ? 'short' : 'post';
 
   const context = [
     `Angle marketing : "${input.angle}"`,
@@ -66,7 +82,7 @@ export async function generateCanvaDesignPrompt(input: CanvaPromptInput): Promis
     input.style ? `Style musical mis en avant : "${input.style}"` : null,
   ].filter(Boolean).join('\n');
 
-  const prompt = `Tu écris le contenu créatif d'un visuel marketing Instagram pour Melotones (chansons personnalisées par IA, public africain/diaspora).
+  const prompt = `Tu écris le contenu créatif d'un visuel marketing ${format === 'short' ? 'vidéo courte (TikTok/Reels/Shorts)' : 'Instagram'} pour Melotones (chansons personnalisées par IA, public africain/diaspora).
 
 ${context}
 
@@ -86,7 +102,7 @@ Propose en JSON strict, sans markdown, sans commentaire :
     const subtitle = String(parsed.subtitle).slice(0, 140);
     const imageDescription = String(parsed.image_description).slice(0, 200);
 
-    return { prompt: buildCanvaAIPrompt(headline, subtitle, imageDescription), headline, subtitle };
+    return { prompt: buildCanvaAIPrompt(headline, subtitle, imageDescription, format), headline, subtitle };
   } catch (err) {
     console.error('generateCanvaDesignPrompt failed:', err);
     return null;
