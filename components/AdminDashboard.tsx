@@ -181,6 +181,7 @@ const AUTOMATION_AGENTS: { slug: string; name: string; schedule: string; descrip
   { slug: 'content-generator', name: 'Contenu réseaux sociaux', schedule: 'Chaque jeudi 10:00 UTC', description: 'Génère 2 nouveaux visuels + légendes (angle rotatif), envoyés par email pour publication manuelle.' },
   { slug: 'social-analytics', name: 'Performance réseaux sociaux', schedule: 'Chaque mardi 09:00 UTC', description: "Lit les vraies statistiques (vues/likes/commentaires) des vidéos publiées et envoie une analyse par email — YouTube actif, TikTok en attente du scope video.list. Rien n'est envoyé s'il n'y a pas encore de données réelles." },
   { slug: 'onboarding-sequence', name: 'Séquence d\'activation', schedule: 'Chaque jour 11:00 UTC', description: 'J0 bienvenue à tous les nouveaux comptes, puis J2/J7 relancent les comptes restés inactifs (jamais généré, jamais acheté) vers leur premier achat — respecte la désinscription.' },
+  { slug: 'agent-report', name: 'Rapport agents (quotidien)', schedule: 'Chaque jour 08:30 UTC', description: "Résumé consolidé en PDF (pipeline Canva, tâches en attente, performance réelle des publications, dernières exécutions) envoyé par email — aussi téléchargeable à la demande via le bouton ci-dessous." },
 ];
 
 const AUDIENCE_LABELS: Record<string, string> = { all: 'Tous les utilisateurs', active: 'Utilisateurs actifs (≥1 chanson)', inactive: 'Utilisateurs inactifs (0 chanson)' };
@@ -1504,9 +1505,14 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <h2 className="text-lg font-bold mb-1 text-gray-800">Centre de contrôle — Agents autonomes</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-bold text-gray-800">Centre de contrôle — Agents autonomes</h2>
+            <a href="/api/admin/agent-report" target="_blank" rel="noopener noreferrer" className="btn-primary text-xs px-4 py-2">
+              📄 Rapport agents (PDF)
+            </a>
+          </div>
           <p className="text-xs text-gray-400 mb-4">
-            Chaque agent tourne comme une routine cloud planifiée, indépendante de ce dashboard, et rapporte son résultat ici après chaque exécution.
+            Chaque agent tourne comme une routine cloud planifiée, indépendante de ce dashboard, et rapporte son résultat ici après chaque exécution. Le rapport PDF résume tout (pipeline, tâches, performance réelle, dernières exécutions) — aussi envoyé par email chaque jour à 08:30 UTC.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {AUTOMATION_AGENTS.map(agent => {

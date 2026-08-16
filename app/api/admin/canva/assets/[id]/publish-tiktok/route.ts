@@ -23,7 +23,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('id', id)
     .single();
   if (fetchError || !asset) return NextResponse.json({ error: 'Asset introuvable' }, { status: 404 });
-  if (asset.status !== 'APPROVED') {
+  // MANUAL_UPLOAD_REQUIRED accepté en plus d'APPROVED : quand un asset part
+  // vers TikTok ET YouTube (voir handleApproveAndPublish côté dashboard), le
+  // premier appel fait déjà passer le statut par MANUAL_UPLOAD_REQUIRED avant
+  // que le second ne se déclenche — sans ça, le second réseau échouait
+  // systématiquement avec cette même erreur (constaté en direct le 2026-08-16).
+  if (asset.status !== 'APPROVED' && asset.status !== 'MANUAL_UPLOAD_REQUIRED') {
     return NextResponse.json({ error: `L'asset doit être au statut APPROVED (actuellement ${asset.status})` }, { status: 400 });
   }
 

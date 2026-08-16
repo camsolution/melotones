@@ -21,7 +21,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('id', id)
     .single();
   if (fetchError || !asset) return NextResponse.json({ error: 'Asset introuvable' }, { status: 404 });
-  if (asset.status !== 'APPROVED') {
+  // MANUAL_UPLOAD_REQUIRED accepté en plus d'APPROVED : même raison que
+  // publish-tiktok — un asset envoyé aux deux réseaux d'affilée
+  // (handleApproveAndPublish) a déjà ce statut après le premier envoi réussi.
+  if (asset.status !== 'APPROVED' && asset.status !== 'MANUAL_UPLOAD_REQUIRED') {
     return NextResponse.json({ error: `L'asset doit être au statut APPROVED (actuellement ${asset.status})` }, { status: 400 });
   }
 
