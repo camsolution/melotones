@@ -6,7 +6,7 @@ import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 export const dynamic = 'force-dynamic';
 
 const GRAPH_TOKEN_URL = 'https://graph.facebook.com/v21.0/oauth/access_token';
-const SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management';
+const SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_business_basic,instagram_business_content_publish,business_management';
 
 export async function GET(request: Request) {
   const { error, status, user } = await requireAdmin();

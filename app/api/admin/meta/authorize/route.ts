@@ -6,10 +6,12 @@ import { isMetaConfigured } from '@/lib/meta';
 export const dynamic = 'force-dynamic';
 
 // pages_show_list/pages_read_engagement/pages_manage_posts : gérer les Pages
-// Facebook. instagram_basic/instagram_content_publish : publier sur le
-// compte Instagram professionnel lié à une Page (Meta ne permet pas de
-// connecter Instagram indépendamment d'une Page Facebook).
-const SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management';
+// Facebook. instagram_business_basic/instagram_business_content_publish :
+// publier sur le compte Instagram professionnel lié à une Page (Meta ne
+// permet pas de connecter Instagram indépendamment d'une Page Facebook).
+// Noms renommés par Meta (l'ancien instagram_basic/instagram_content_publish
+// renvoie "Invalid Scopes" depuis leur dépréciation, confirmé le 2026-08-16).
+const SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_business_basic,instagram_business_content_publish,business_management';
 
 export async function GET() {
   const { error, status } = await requireAdmin();
