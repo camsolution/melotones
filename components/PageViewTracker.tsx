@@ -22,13 +22,18 @@ export default function PageViewTracker() {
   const lastSent = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!pathname || lastSent.current === pathname) return;
-    lastSent.current = pathname;
+    if (!pathname) return;
+    // window.location.search plutot que useSearchParams() : evite d'exiger
+    // une limite Suspense autour de ce composant pour un simple ajout de
+    // parametres UTM a un tracking deja purement client-side.
+    const fullPath = pathname + (typeof window !== 'undefined' ? window.location.search : '');
+    if (lastSent.current === fullPath) return;
+    lastSent.current = fullPath;
     const sessionId = getOrCreateSessionId();
     fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, path: pathname }),
+      body: JSON.stringify({ session_id: sessionId, path: fullPath }),
       keepalive: true,
     }).catch(() => {});
   }, [pathname]);
