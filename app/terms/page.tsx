@@ -34,6 +34,7 @@ export default function TermsPage() {
         <section>
           <h2 className="font-display font-bold text-lg text-gray-800 mb-2">5. Contenu généré</h2>
           <p>Vous restez propriétaire du contenu (occasion, message, prénoms) que vous fournissez. Les chansons générées vous sont destinées à un usage personnel ; vous pouvez les télécharger, les partager, et choisir de les rendre publiques sur la page Explorer. Melotones ne garantit pas un résultat identique à chaque génération : le contenu produit par l'intelligence artificielle peut varier.</p>
+          <p>Le régime juridique du contenu généré par intelligence artificielle n'est pas encore fixé, ni en droit sénégalais ni dans les textes de l'Organisation Africaine de la Propriété Intellectuelle (OAPI) dont le Sénégal est membre. Melotones ne garantit donc pas que les chansons générées bénéficient d'une protection par le droit d'auteur, et ne fait aucune déclaration quant à la titularité d'éventuels droits sur l'enregistrement audio produit.</p>
         </section>
 
         <section>
