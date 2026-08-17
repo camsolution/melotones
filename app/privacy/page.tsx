@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           <h2 className="font-display font-bold text-lg text-gray-800 mb-2">4. Partage avec des tiers</h2>
           <p>Pour fonctionner, Melotones transmet certaines données à des prestataires techniques, uniquement dans la mesure nécessaire à leur rôle :</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>MusicGPT</strong> : génération de la musique à partir de votre message (le contenu de votre message est transmis).</li>
+            <li><strong>Notre prestataire de génération musicale par intelligence artificielle</strong> : génération de la musique à partir de votre message (le contenu de votre message est transmis).</li>
             <li><strong>Google (Gemini)</strong> : génération assistée de suggestions de paroles, si vous utilisez cette fonctionnalité.</li>
             <li><strong>PayDunya</strong> : traitement des paiements Mobile Money et carte bancaire.</li>
             <li><strong>Supabase</strong> : hébergement de la base de données, authentification et stockage des fichiers.</li>
