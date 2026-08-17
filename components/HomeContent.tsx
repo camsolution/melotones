@@ -14,7 +14,7 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
 
   return (
     <div>
-      <section className="text-center pt-8 sm:pt-16 md:pt-24 pb-4 px-4 relative overflow-hidden">
+      <section className="text-center pt-12 sm:pt-20 md:pt-24 pb-4 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-amber-50 opacity-70 -z-10" />
         <h1 className="font-display text-[28px] sm:text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-brand-600 via-magenta-500 to-amber-500 text-transparent bg-clip-text mb-3 sm:mb-6 leading-tight text-balance">
           {t('Bienvenue sur Melotones', 'Welcome to Melotones')}
