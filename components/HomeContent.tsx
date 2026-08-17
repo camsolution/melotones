@@ -14,7 +14,7 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
 
   return (
     <div>
-      <section className="text-center py-16 md:py-24 px-4 relative overflow-hidden">
+      <section className="text-center pt-16 md:pt-24 pb-4 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-amber-50 opacity-70 -z-10" />
         <h1 className="font-display text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-brand-600 via-magenta-500 to-amber-500 text-transparent bg-clip-text mb-6 leading-tight text-balance">
           {t('Bienvenue sur Melotones', 'Welcome to Melotones')}
@@ -31,7 +31,7 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
         </div>
       </section>
       {exampleSongs.length > 0 && (
-        <section id="examples" className="py-12">
+        <section id="examples" className="pb-12">
           <CommunitySongs songs={exampleSongs} />
           <h2 className="font-display text-3xl font-bold mb-6 text-gray-800 text-center">{t('Parcourez nos créations', 'Browse our creations')}</h2>
           <SearchFilters />
