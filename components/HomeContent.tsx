@@ -32,9 +32,9 @@ export default function HomeContent({ exampleSongs, testimonials }: { exampleSon
       </section>
       {exampleSongs.length > 0 && (
         <section id="examples" className="py-12">
-          <h2 className="font-display text-3xl font-bold mb-6 text-gray-800">{t('Parcourez nos créations', 'Browse our creations')}</h2>
-          <SearchFilters />
           <CommunitySongs songs={exampleSongs} />
+          <h2 className="font-display text-3xl font-bold mb-6 text-gray-800 text-center">{t('Parcourez nos créations', 'Browse our creations')}</h2>
+          <SearchFilters />
         </section>
       )}
       <Testimonials testimonials={testimonials} />
