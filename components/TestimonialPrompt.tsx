@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Star, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function TestimonialPrompt({ generationId }: { generationId: string }) {
+export default function TestimonialPrompt({ generationId }: { generationId?: string }) {
   const { t } = useLanguage();
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -61,7 +61,9 @@ export default function TestimonialPrompt({ generationId }: { generationId: stri
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value.slice(0, 600))}
-        placeholder={t('Qu\'avez-vous pensé de votre chanson ?', 'What did you think of your song?')}
+        placeholder={generationId
+          ? t('Qu\'avez-vous pensé de votre chanson ?', 'What did you think of your song?')
+          : t('Que pensez-vous de Melotones ?', 'What do you think of Melotones?')}
         className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none"
         rows={3}
       />

@@ -10,6 +10,9 @@ import { styleMeta } from '@/lib/styleMeta';
 import { styleTranslations } from '@/lib/listTranslations';
 import AdSlot from '@/components/AdSlot';
 import FeaturedSong from '@/components/FeaturedSong';
+import TestimonialPrompt from '@/components/TestimonialPrompt';
+import Testimonials from '@/components/Testimonials';
+import { PublicTestimonial } from '@/lib/testimonials';
 
 const QUICK_STYLES = ['Afrobeat', 'Amapiano', 'RnB', 'Reggae', 'Cabo'];
 
@@ -25,8 +28,13 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState<number>(0);
   const [songs, setSongs] = useState<Generation[]>([]);
+  const [publicTestimonials, setPublicTestimonials] = useState<PublicTestimonial[]>([]);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    fetch('/api/testimonials').then(res => res.json()).then(setPublicTestimonials).catch(() => {});
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -220,6 +228,22 @@ export default function DashboardPage() {
           </section>
         </div>
       </div>
+
+      {/* Avis : formulaire d'avis general (pas lie a une chanson precise) +
+          avis publics deja approuves, visibles directement sur la premiere
+          page vue apres connexion. */}
+      <section className="rounded-[28px] p-7 md:p-8 bg-white border border-gray-200 shadow-xl">
+        <h2 className="font-display font-bold text-[15.5px] text-gray-800 mb-1">{t('Votre avis', 'Your review')}</h2>
+        <p className="text-[13px] text-gray-500 max-w-md">
+          {t('Donnez une note et un commentaire sur votre expérience Melotones.', 'Rate and share your experience with Melotones.')}
+        </p>
+        <TestimonialPrompt />
+        {publicTestimonials.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-gray-100">
+            <Testimonials testimonials={publicTestimonials} />
+          </div>
+        )}
+      </section>
     </div>
   );
 }
